@@ -1,0 +1,17 @@
+/build
+/dist
+/extensions
+/generated
+*.pyc
+*DS_Store
+/.vscode
+/boost_*
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
