@@ -20,6 +20,10 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         signingConfig signingConfigs.release
+
+        packagingOptions {
+            pickFirst 'lib/**/*.so'
+        }
     }
 
     buildTypes {
@@ -31,7 +35,10 @@ android {
 }
 
 dependencies {
-    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.2.83'
+    implementation 'us.inavi.libs:sensormanager:4.0.1'
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.so'])
+
+    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:2.5.4'
     implementation 'com.squareup.okhttp3:okhttp:4.9.1'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'androidx.appcompat:appcompat:1.1.0'

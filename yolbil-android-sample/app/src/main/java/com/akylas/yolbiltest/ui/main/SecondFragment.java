@@ -56,7 +56,10 @@ import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.RasterTileLayer;
 import com.basarsoft.yolbil.layers.TileLoadListener;
 import com.basarsoft.yolbil.layers.VectorLayer;
+import com.basarsoft.yolbil.location.GPSLocationSource;
+import com.basarsoft.yolbil.location.Location;
 import com.basarsoft.yolbil.location.LocationBuilder;
+import com.basarsoft.yolbil.location.LocationListener;
 import com.basarsoft.yolbil.location.LocationSource;
 import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator;
 import com.basarsoft.yolbil.projections.EPSG4326;
@@ -100,6 +103,11 @@ public class SecondFragment extends Fragment {
     VectorLayer vectorLayerLine;
     VectorLayer vectorLayerMarker;
     YolbilNavigationUsage usage;
+    GPSLocationSource gpsLocationSource;
+    Location lastLocation = null;
+    Button focusPos,startNavigation;
+    boolean isLocationFound = false;
+
 
     AssetsVoiceNarrator commandPlayer;
     public static SecondFragment newInstance() {
@@ -114,6 +122,31 @@ public class SecondFragment extends Fragment {
 
         View view = inflater.inflate(R.layout.second_fragment, container, false);
         offlineSwitch = view.findViewById(R.id.offlineSwitch);
+        focusPos = view.findViewById(R.id.button2);
+        startNavigation = view.findViewById(R.id.button3);
+        focusPos.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try {
+                    if (lastLocation != null) {
+                        mapViewObject.setFocusPos(lastLocation.getCoordinate(), 1.0f);
+                        mapViewObject.setZoom(17, 1.0f);
+                    }
+                    mapViewObject.setDeviceOrientationFocused(true);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        startNavigation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(usage != null ){
+                    usage.startNavigation();
+                }
+            }
+        });
         offlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -172,13 +205,13 @@ public class SecondFragment extends Fragment {
         });
 
         mapViewObject.setFocusPos(silverBlocks, 0);
-        mapViewObject.setZoom(17, 0);
+        //mapViewObject.setZoom(17, 0);
 
         //DownloadManager downloadmanager = (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
         //YolbilUtil.downloadYolbilData(downloadmanager);
         //getActivity().registerReceiver(onDownloadComplete,new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
-        rasterlayer.setTileLoadListener( new TileLoadListener(){
+        /*rasterlayer.setTileLoadListener( new TileLoadListener(){
             @Override
             public void onVisibleTilesLoaded() {
                 Log.e("minx", ""+ mapViewObject.getMapBounds().getMin().getX());
@@ -188,9 +221,10 @@ public class SecondFragment extends Fragment {
                 Log.e("maxy", ""+ mapViewObject.getMapBounds().getMax().getY());
                 super.onVisibleTilesLoaded();
             }
-        });
+        });*/
         return view;
     }
+    @SuppressLint("MissingPermission")
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -207,6 +241,20 @@ public class SecondFragment extends Fragment {
             Log.e("valhalla", e.getMessage());
         }
 
+        gpsLocationSource = new GPSLocationSource(getActivity());
+        gpsLocationSource.startLocationUpdates();
+        gpsLocationSource.addListener(new LocationListener(){
+            @Override
+            public void onLocationChange(Location location) {
+                if(!isLocationFound){
+                    lastLocation = location;
+                    initOnline(location.getCoordinate(), new MapPos(30.927677, 37.326687),false);
+                    isLocationFound = true;
+                }
+                //mapViewObject.setDeviceOrientationFocused(true);
+                //mapViewObject.setFocusPos(location.getCoordinate(), 1);
+            }
+        });
 
         mapViewObject.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
@@ -215,7 +263,7 @@ public class SecondFragment extends Fragment {
                     if(usage != null){
                         usage.stopNavigation();
                     }
-                    initOnline(touchPos, offlineSwitch.isChecked());
+                    //initOnline(touchPos, offlineSwitch.isChecked());
                 }catch (Exception e){
                     Log.e("fail","new route");
                 }
@@ -272,8 +320,9 @@ public class SecondFragment extends Fragment {
             }
         });*/
 
-        initOnline(new MapPos(30.927677, 37.326687),false);
         sendAutoSuggestionRequest();
+        mapViewObject.setFocusPos(new MapPos(34.12908547029324,39.45037125619312),0.0f);
+        mapViewObject.setZoom(4,0.0f);
 
     }
 
@@ -433,37 +482,40 @@ public class SecondFragment extends Fragment {
         Log.d(TAG, "onCreateAnimator " + result);
         return result;
     }
-    public void initOnline(MapPos mapPosTo, boolean isOffline){
-        if(usage!=null) {
-            mapViewObject.getLayers().remove(vectorLayerMarker);
-            vectorDataSourceMarker.clear();
-        }
+    public void initOnline(MapPos from, MapPos mapPosTo, boolean isOffline) {
+        if (!isLocationFound) {
+            isLocationFound = true;
+            if (usage != null) {
+                mapViewObject.getLayers().remove(vectorLayerMarker);
+                vectorDataSourceMarker.clear();
+            }
 
-        MarkerStyleBuilder markerStyleBuilder = new MarkerStyleBuilder();
-        markerStyleBuilder.setColor(new Color(0xffff5031));
+            MarkerStyleBuilder markerStyleBuilder = new MarkerStyleBuilder();
+            markerStyleBuilder.setColor(new Color(0xffff5031));
 
-        markerStyleBuilder.setSize(30);
-        MarkerStyle sharedMarkerStyle = markerStyleBuilder.buildStyle();
+            markerStyleBuilder.setSize(30);
+            MarkerStyle sharedMarkerStyle = markerStyleBuilder.buildStyle();
 
-        Marker fromMarker = new Marker(new MapPos(32.7727429, 39.8995515), sharedMarkerStyle);
-        Marker toMarker = new Marker(mapPosTo, sharedMarkerStyle);
+            Marker fromMarker = new Marker(new MapPos(32.7727429, 39.8995515), sharedMarkerStyle);
+            Marker toMarker = new Marker(mapPosTo, sharedMarkerStyle);
 
-        vectorDataSourceMarker = new LocalVectorDataSource(new EPSG4326());
-        //vectorDataSourceMarker.add(fromMarker);
-        vectorDataSourceMarker.add(toMarker);
+            vectorDataSourceMarker = new LocalVectorDataSource(new EPSG4326());
+            //vectorDataSourceMarker.add(fromMarker);
+            vectorDataSourceMarker.add(toMarker);
 
-        vectorLayerMarker = new VectorLayer(vectorDataSourceMarker);
-        mapViewObject.getLayers().add(vectorLayerMarker);
+            vectorLayerMarker = new VectorLayer(vectorDataSourceMarker);
+            mapViewObject.getLayers().add(vectorLayerMarker);
 
-        usage = new YolbilNavigationUsage();
-        NavigationResult navigationResult =
-                usage.fullExample(mapViewObject, silverBlocks, mapPosTo, isOffline);
+            usage = new YolbilNavigationUsage();
+            NavigationResult navigationResult =
+                    usage.fullExample(mapViewObject, from, mapPosTo, isOffline, gpsLocationSource);
 
-        RoutingInstructionVector instructions = navigationResult.getInstructions();
-        Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
+            RoutingInstructionVector instructions = navigationResult.getInstructions();
+            Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
 
-        for (int i = 0; i < instructions.size(); i++) {
-            Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
+            for (int i = 0; i < instructions.size(); i++) {
+                Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
+            }
         }
     }
 

@@ -117,6 +117,19 @@
 
             android:text="Yol Katmanı"
             android:textSize="30sp"></CheckBox>
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="focus orientation" />
+
+        <Button
+            android:id="@+id/button3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Start Navigation"
+            tools:layout_editor_absoluteX="160dp"
+            tools:layout_editor_absoluteY="77dp" />
     </LinearLayout>
 
     <TextView
