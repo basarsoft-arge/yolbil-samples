@@ -44,6 +44,7 @@ public class YolbilNavigationUsage {
     private GPSLocationSource locationSource;
     private Location lastLocation = null;
     private NavigationResult navigationResult;
+    private VectorLayer blueDotVectorLayer = null;
 
     @SuppressLint("MissingPermission")
     NavigationResult fullExample(MapView mapView, MapPos start, MapPos end, boolean isOffline, GPSLocationSource locationSource) {
@@ -88,7 +89,7 @@ public class YolbilNavigationUsage {
     void addLocationSourceToMap(MapView mapView) {
         BlueDotDataSource blueDotDataSource =
                 new BlueDotDataSource(new EPSG4326(), snapLocationSourceProxy.getLocationSource());
-        VectorLayer blueDotVectorLayer = new VectorLayer(blueDotDataSource);
+        blueDotVectorLayer = new VectorLayer(blueDotDataSource);
         mapView.getLayers().add(blueDotVectorLayer);
     }
 
@@ -98,6 +99,9 @@ public class YolbilNavigationUsage {
         snapLocationSourceProxy.updateLocation(newLocation);
     }
     void stopNavigation(){
+        if(blueDotVectorLayer != null)
+            mapView.getLayers().remove(blueDotVectorLayer);
+        mapView.getLayers().removeAll(bundle.getLayers());
         bundle.stopNavigation();
     }
 

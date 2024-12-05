@@ -52,6 +52,7 @@ import com.basarsoft.yolbil.core.StringVector;
 import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
 import com.basarsoft.yolbil.datasources.MemoryCacheTileDataSource;
+import com.basarsoft.yolbil.datasources.PersistentCacheTileDataSource;
 import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.RasterTileLayer;
 import com.basarsoft.yolbil.layers.TileLoadListener;
@@ -151,15 +152,19 @@ public class SecondFragment extends Fragment {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
 
-                if(usage != null){
-                    usage.stopNavigation();
+                if(lastLocation != null) {
+                    isLocationFound = false;
+                    if (usage != null) {
+                        usage.stopNavigation();
+                    }
+
+                    if (b) {
+                        initOnline(lastLocation.getCoordinate(), new MapPos(30.927677, 40.326687), b);
+                    } else {
+                        initOnline(lastLocation.getCoordinate(), new MapPos(30.927677, 40.326687), b);
+                    }
+                    offlineSwitch.setChecked(b);
                 }
-                if (b) {
-                    //initOnline(new MapPos(30.927677, 40.326687),b);
-                }else{
-                    //initOnline(new MapPos(30.927677, 40.326687), b);
-                }
-                offlineSwitch.setChecked(b);
             }
         });
         Button modeBtn = view.findViewById(R.id.modeButton);
@@ -230,12 +235,14 @@ public class SecondFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         try {
-            if(offlineSwitch.isChecked()) {
+            if(lastLocation != null) {
+                isLocationFound = false;
+                if (offlineSwitch.isChecked()) {
+                    initOnline(lastLocation.getCoordinate(),new MapPos(30.927677, 40.326687), true);
 
-                //initOnline(new MapPos(30.927677, 40.326687), true);
-
-            }else{
-                //initOnline(new MapPos(30.927677, 40.326687), false);
+                } else {
+                    initOnline(lastLocation.getCoordinate(),new MapPos(30.927677, 40.326687), false);
+                }
             }
         }catch (Exception e){
             Log.e("valhalla", e.getMessage());
@@ -246,9 +253,9 @@ public class SecondFragment extends Fragment {
         gpsLocationSource.addListener(new LocationListener(){
             @Override
             public void onLocationChange(Location location) {
+                lastLocation = location;
                 if(!isLocationFound){
-                    lastLocation = location;
-                    initOnline(location.getCoordinate(), new MapPos(30.927677, 37.326687),false);
+                    //initOnline(location.getCoordinate(), new MapPos(30.927677, 37.326687),false);
                     isLocationFound = true;
                 }
                 //mapViewObject.setDeviceOrientationFocused(true);
@@ -496,7 +503,7 @@ public class SecondFragment extends Fragment {
             markerStyleBuilder.setSize(30);
             MarkerStyle sharedMarkerStyle = markerStyleBuilder.buildStyle();
 
-            Marker fromMarker = new Marker(new MapPos(32.7727429, 39.8995515), sharedMarkerStyle);
+            Marker fromMarker = new Marker(from, sharedMarkerStyle);
             Marker toMarker = new Marker(mapPosTo, sharedMarkerStyle);
 
             vectorDataSourceMarker = new LocalVectorDataSource(new EPSG4326());
