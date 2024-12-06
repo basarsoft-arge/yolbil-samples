@@ -280,7 +280,6 @@ public class SecondFragment extends Fragment {
         /*
          */
 
-        YolbilDownloadManager downloadManager = new YolbilDownloadManager();
 
         File destinationFile = new File("/storage/emulated/0/yolbilxdata/", "TR.vtiles");
         String downloadUrl = "DOWNLOAD_URL";
@@ -294,9 +293,11 @@ public class SecondFragment extends Fragment {
 
         // Dosya indirme işlemini başlat
         //startDownload(destinationFile, downloadUrl);
-        downloadManager = new YolbilDownloadManager();
 
-        /*downloadManager.checkVersion("/storage/emulated/0/yolbilxdata/", new YolbilDownloadManager.VersionListener(){
+        //THIS MUST BE SET FOR CUSTOM DOMAIN
+        downloadManager = new YolbilDownloadManager("DOMAIN");
+
+        downloadManager.checkVersion("/storage/emulated/0/yolbilxdata/", new YolbilDownloadManager.VersionListener(){
 
             @Override
             public void onVersionUpToDate() {
@@ -305,7 +306,7 @@ public class SecondFragment extends Fragment {
                     Toast.makeText(getContext(), "onVersionUpToDate", Toast.LENGTH_LONG).show()
                     ;
                 });
-                initOnline(new MapPos(30.927677, 37.326687),true);
+                //initOnline(new MapPos(30.927677, 37.326687),true);
             }
 
             @Override
@@ -325,7 +326,7 @@ public class SecondFragment extends Fragment {
                 });
                 startDownload(destinationFile, downloadUrl);
             }
-        });*/
+        });
 
         sendAutoSuggestionRequest();
         mapViewObject.setFocusPos(new MapPos(34.12908547029324,39.45037125619312),0.0f);
@@ -385,10 +386,9 @@ public class SecondFragment extends Fragment {
 
         // ProgressDialog'u göster
         getActivity().runOnUiThread(() -> progressDialog.show());
-        downloadManager = new YolbilDownloadManager();
 
         // YolbilDownloadManager'ı kullanarak dosya indirme işlemini başlat
-        /*downloadManager.downloadFile(downloadUrl, destinationFile, new YolbilDownloadManager.DownloadListener() {
+        downloadManager.downloadFile(downloadUrl, destinationFile, new YolbilDownloadManager.DownloadListener() {
             @Override
             public void onProgress(int progress) {
                 // ProgressDialog'u güncelle
@@ -401,7 +401,7 @@ public class SecondFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     progressDialog.dismiss();
                     Toast.makeText(getContext(), "İndirme tamamlandı: " + downloadedFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
-                    initOnline(new MapPos(30.927677, 37.326687),true);
+                    //initOnline(new MapPos(30.927677, 37.326687),true);
                 });
             }
 
@@ -412,7 +412,7 @@ public class SecondFragment extends Fragment {
                     Toast.makeText(getContext(), "İndirme hatası: " + errorMessage, Toast.LENGTH_LONG).show();
                 });
             }
-        });*/
+        });
     }
 
     /*

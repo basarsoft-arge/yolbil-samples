@@ -2,6 +2,7 @@ package com.example.yolbil_jetpack_sample
 
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -169,14 +170,18 @@ suspend fun startDownload(
 ) {
     downloadManager.downloadFile(downloadUrl, destinationFile, object : YolbilDownloadManager.DownloadListener {
         override fun onProgress(progress: Int) {
+            Log.e("Download", progress.toString())
             onProgress(progress)
         }
 
         override fun onSuccess(downloadedFile: File) {
+            Log.e("Download", "success")
             onProgress(100) // İndirme tamamlandı
         }
 
         override fun onError(errorMessage: String, errorType: YolbilDownloadManager.DownloadError) {
+            Log.e("Download error", errorMessage)
+
             onProgress(0) // İlerleme sıfırlanır
         }
     })
