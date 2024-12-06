@@ -9,73 +9,75 @@ import com.basarsoft.yolbil.location.GPSLocationSource
 import com.basarsoft.yolbil.location.Location
 import com.basarsoft.yolbil.location.LocationListener
 import com.basarsoft.yolbil.location.LocationSourceSnapProxy
-import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator
 import com.basarsoft.yolbil.navigation.CommandListener
 import com.basarsoft.yolbil.navigation.NavigationCommand
 import com.basarsoft.yolbil.navigation.YolbilNavigationBundle
 import com.basarsoft.yolbil.navigation.YolbilNavigationBundleBuilder
 import com.basarsoft.yolbil.projections.EPSG4326
 import com.basarsoft.yolbil.routing.NavigationResult
-import com.basarsoft.yolbil.ui.MapClickInfo
-import com.basarsoft.yolbil.ui.MapEventListener
 import com.basarsoft.yolbil.ui.MapView
-import com.basarsoft.yolbil.utils.AssetUtils
-import com.basarsoft.yolbil.utils.ZippedAssetPackage
-
-
 
 
 class YolbilNavigationUsage {
 
     val TAG: String = "YolbilNavigationUsage"
 
+    private var mapView: MapView? = null
     private var snapLocationSourceProxy: LocationSourceSnapProxy? = null
     private var bundle: YolbilNavigationBundle? = null
+    private var locationSource: GPSLocationSource? = null
+    private var lastLocation: Location? = null
+    private var navigationResult: NavigationResult? = null
+    private val blueDotVectorLayer: VectorLayer? = null
 
     @SuppressLint("MissingPermission")
     fun fullExample(
         mapView: MapView,
         start: MapPos?,
         end: MapPos?,
-        isOffline: Boolean
+        isOffline: Boolean,
+        locationSource: GPSLocationSource
     ): NavigationResult? {
         // Initialize location source
-        val locationSource = GPSLocationSource(mapView.context)
+        this.mapView = mapView
+
         mapView.setFocusPos(start, 0f)
 
+        // GPSLocationSource automatically implements Android specific GPS TODO iOS?
+        this.locationSource = locationSource
         locationSource.addListener(object : LocationListener() {
             override fun onLocationChange(location: Location) {
                 // Update map focus position if necessary
             }
         })
 
-        mapView.mapEventListener = object : MapEventListener() {
+       /* mapView.mapEventListener = object : MapEventListener() {
             override fun onMapClicked(mapClickInfo: MapClickInfo) {
                 locationSource.sendMockLocation(mapClickInfo.clickPos)
             }
-        }
+        }*/
 
         snapLocationSourceProxy = LocationSourceSnapProxy(locationSource)
         snapLocationSourceProxy?.setMaxSnapDistanceMeter(500.0)
-
+        lastLocation = Location()
+        lastLocation!!.setCoordinate(start)
         this.addLocationSourceToMap(mapView)
         bundle = this.getNavigationBundle(isOffline)
         this.addNavigationToMapLayers(mapView)
 
-        var navigationResult: NavigationResult? = null
         val localBundle = bundle // Use a local variable for null safety
 
         if (localBundle != null) {
             navigationResult = if (isOffline) {
-                localBundle.startNavigation(start, end)
+                localBundle.startOfflineNavigation(start, end)
             } else {
                 localBundle.startNavigation(start, end)
             }
 
-            snapLocationSourceProxy?.setRoutingPoints(navigationResult.points)
+            snapLocationSourceProxy?.setRoutingPoints(navigationResult!!.points)
 
-            for (i in 0 until navigationResult.instructions.size()) {
-                val rI = navigationResult.instructions[i.toInt()]
+            for (i in 0 until navigationResult!!.instructions.size()) {
+                val rI = navigationResult!!.instructions[i.toInt()]
                 Log.e("Instruction", rI.instruction)
                 Log.e("Instruction", rI.action.toString())
                 rI.geometryTag.getObjectElement("commands").getArrayElement(0)
@@ -84,6 +86,8 @@ class YolbilNavigationUsage {
         } else {
             Log.e(TAG, "Navigation bundle is null")
         }
+        mapView.fitRouteOnMap(navigationResult!!.getPoints());
+
         return navigationResult
     }
 
@@ -100,7 +104,9 @@ class YolbilNavigationUsage {
     }
 
     fun stopNavigation() {
-        bundle?.stopNavigation()
+        if (blueDotVectorLayer != null) mapView!!.layers.remove(blueDotVectorLayer)
+        mapView!!.layers.removeAll(bundle!!.layers)
+        bundle!!.stopNavigation()
     }
 
     fun getNavigationBundle(isOffline: Boolean): YolbilNavigationBundle {
@@ -112,7 +118,8 @@ class YolbilNavigationUsage {
         )
 
         navigationBundleBuilder.setBlueDotDataSourceEnabled(true)
-
+        navigationBundleBuilder.setOfflineEnabled(isOffline)
+        navigationBundleBuilder.setOfflineDataPath("/storage/emulated/0/yolbilxdata/TR.vtiles")
         navigationBundleBuilder.setCommandListener(object : CommandListener() {
             override fun onNavigationStarted(): Boolean {
                 Log.e(TAG, "onNavigationStarted: navigation started")
@@ -136,5 +143,22 @@ class YolbilNavigationUsage {
 
     fun addNavigationToMapLayers(mapView: MapView) {
         bundle?.layers?.let { mapView.layers.addAll(it) }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startNavigation() {
+        if (navigationResult != null && mapView != null) {
+            bundle!!.beginNavigation(navigationResult)
+            mapView!!.setDeviceOrientationFocused(true)
+            mapView!!.setFocusPos(lastLocation!!.getCoordinate() , 1.0f)
+            mapView!!.setZoom(17f, 1.0f)
+            locationSource?.addListener(object : LocationListener() {
+                override fun onLocationChange(location: Location) {
+                    mapView!!.setDeviceOrientationFocused(true)
+                    mapView!!.setZoom(17f, 1.0f)
+                    mapView!!.setFocusPos(location.coordinate, 1f)
+                }
+            })
+        }
     }
 }

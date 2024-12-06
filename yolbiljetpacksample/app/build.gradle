@@ -21,6 +21,10 @@ android {
         }
     }
 
+    packagingOptions {
+        pickFirst 'lib/**/*.so'
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -49,7 +53,12 @@ android {
 
 dependencies {
     // Yolbil SDK
-    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.2.83'
+    implementation libs.sensormanager
+    implementation 'com.squareup.okhttp3:okhttp:4.9.1'
+
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.so'])
+
+    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:2.5.4'
 
     // AndroidX Libraries
     implementation libs.androidx.core.ktx
