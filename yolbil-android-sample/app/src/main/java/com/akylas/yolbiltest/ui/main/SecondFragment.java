@@ -45,6 +45,7 @@ import androidx.fragment.app.Fragment;
 
 import com.akylas.yolbiltest.R;
 import com.basarsoft.yolbil.components.Options;
+import com.basarsoft.yolbil.core.MapBounds;
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
 import com.basarsoft.yolbil.core.ScreenPos;
@@ -53,6 +54,8 @@ import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
 import com.basarsoft.yolbil.datasources.MemoryCacheTileDataSource;
 import com.basarsoft.yolbil.datasources.PersistentCacheTileDataSource;
+import com.basarsoft.yolbil.datasources.TileDownloadListener;
+import com.basarsoft.yolbil.datasources.YBOfflineStoredDataSource;
 import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.RasterTileLayer;
 import com.basarsoft.yolbil.layers.TileLoadListener;
@@ -186,8 +189,29 @@ public class SecondFragment extends Fragment {
         subdomains.add("2");
         subdomains.add("3");
         httpTileDataSource.setSubdomains(subdomains);
-        MemoryCacheTileDataSource memorySource = new MemoryCacheTileDataSource(httpTileDataSource);
-        final RasterTileLayer rasterlayer = new RasterTileLayer(memorySource);
+
+        //FOR OFFLINE STORAGE VIEWED TILES
+        YBOfflineStoredDataSource ybOfflineStoredDataSource = new YBOfflineStoredDataSource(httpTileDataSource, "/storage/emulated/0/.cachetile.db");
+
+        //ONLY OFFLINE USAGE
+        //ybOfflineStoredDataSource.setCacheOnlyMode(true);
+
+        final RasterTileLayer rasterlayer = new RasterTileLayer(ybOfflineStoredDataSource);
+
+        //FOR DOWNLOAD SELECTED BOUNDARY
+        /*
+        MapBounds bounds = new MapBounds(new MapPos(32.836262, 39.960160), new MapPos(32.836262, 39.960160));
+        ybOfflineStoredDataSource.startDownloadArea(bounds, 0, 10, new TileDownloadListener() {
+            @Override
+            public void onDownloadProgress(float progress) {
+
+            }
+
+            @Override
+            public void onDownloadCompleted() {
+
+            }
+        });*/
 
         Options options = mapViewObject.getOptions();
 
@@ -297,7 +321,7 @@ public class SecondFragment extends Fragment {
         //THIS MUST BE SET FOR CUSTOM DOMAIN
         downloadManager = new YolbilDownloadManager("DOMAIN");
 
-        downloadManager.checkVersion("/storage/emulated/0/yolbilxdata/", new YolbilDownloadManager.VersionListener(){
+        /*downloadManager.checkVersion("/storage/emulated/0/yolbilxdata/", new YolbilDownloadManager.VersionListener(){
 
             @Override
             public void onVersionUpToDate() {
@@ -326,7 +350,7 @@ public class SecondFragment extends Fragment {
                 });
                 startDownload(destinationFile, downloadUrl);
             }
-        });
+        });*/
 
         sendAutoSuggestionRequest();
         mapViewObject.setFocusPos(new MapPos(34.12908547029324,39.45037125619312),0.0f);

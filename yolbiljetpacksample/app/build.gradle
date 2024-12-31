@@ -58,7 +58,7 @@ dependencies {
 
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.so'])
 
-    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:2.5.4'
+    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.2.93'
 
     // AndroidX Libraries
     implementation libs.androidx.core.ktx

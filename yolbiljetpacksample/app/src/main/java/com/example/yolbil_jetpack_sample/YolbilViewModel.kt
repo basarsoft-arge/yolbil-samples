@@ -5,8 +5,11 @@ import android.util.Log
 import android.widget.Button
 import androidx.lifecycle.ViewModel
 import com.basarsoft.inavi.libs.sensormanager.SensorManager
+import com.basarsoft.yolbil.core.MapBounds
 import com.basarsoft.yolbil.core.MapPos
 import com.basarsoft.yolbil.datasources.HTTPTileDataSource
+import com.basarsoft.yolbil.datasources.TileDownloadListener
+import com.basarsoft.yolbil.datasources.YBOfflineStoredDataSource
 import com.basarsoft.yolbil.layers.RasterTileLayer
 import com.basarsoft.yolbil.layers.TileLoadListener
 import com.basarsoft.yolbil.location.GPSLocationSource
@@ -16,7 +19,6 @@ import com.basarsoft.yolbil.projections.EPSG4326
 import com.basarsoft.yolbil.ui.MapView
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-
 
 
 @HiltViewModel
@@ -57,9 +59,24 @@ class YolbilViewModel @Inject constructor() : ViewModel() {
         val tileDataSource = HTTPTileDataSource(
             0, 18, "https://bms.basarsoft.com.tr/service/api/v1/map/Default?appcode=$appCode&accid=$accId&x={x}&y={y}&z={zoom}"
         )
+        val ybOfflineStoredDataSource =
+            YBOfflineStoredDataSource(tileDataSource, "/storage/emulated/0/.cachetile.db")
+        ybOfflineStoredDataSource.isCacheOnlyMode = true
+
+        val bounds = MapBounds(MapPos(32.836262, 39.960160), MapPos(32.836262, 39.960160))
+
+        ybOfflineStoredDataSource.startDownloadArea(bounds, 0, 10, object : TileDownloadListener() {
+            override fun onDownloadProgress(progress: Float) {
+            }
+
+            override fun onDownloadCompleted() {
+            }
+        })
+
+
 
         // Create and add tile layer to MapView
-        val rasterLayer = RasterTileLayer(tileDataSource)
+        val rasterLayer = RasterTileLayer(ybOfflineStoredDataSource)
         mapView.layers.add(rasterLayer)
 
         // Monitor tile load events
@@ -103,7 +120,7 @@ class YolbilViewModel @Inject constructor() : ViewModel() {
             //for offline routing
             val isOffline = false;
             // Use YolbilNavigationUsage to create and display the route
-            val navigationResult = navigationUsage.fullExample(
+            /*val navigationResult = navigationUsage.fullExample(
                 mapView,
                 lastLocation!!.coordinate,
                 this.endPos,
@@ -130,7 +147,7 @@ class YolbilViewModel @Inject constructor() : ViewModel() {
                 // Further processing, such as displaying route details or instructions
             } else {
                 Log.e("YolbilViewModel", "Failed to create route. NavigationResult is null.")
-            }
+            }*/
         }
     }
 
