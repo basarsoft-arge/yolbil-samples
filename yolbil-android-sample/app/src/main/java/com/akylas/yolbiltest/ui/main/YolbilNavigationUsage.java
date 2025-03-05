@@ -19,6 +19,7 @@ import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator;
 import com.basarsoft.yolbil.navigation.CommandListener;
 import com.basarsoft.yolbil.navigation.Narrator;
 import com.basarsoft.yolbil.navigation.NavigationCommand;
+import com.basarsoft.yolbil.navigation.RouteType;
 import com.basarsoft.yolbil.navigation.VoiceNarrator;
 import com.basarsoft.yolbil.navigation.YolbilNavigationBundle;
 import com.basarsoft.yolbil.navigation.YolbilNavigationBundleBuilder;
@@ -106,16 +107,17 @@ public class YolbilNavigationUsage {
     }
 
     YolbilNavigationBundle getNavigationBundle(boolean isOffline) {
-        String baseUrl = "bms.basarsoft.com.tr";
-        String accountId = "YOUR_ACC_ID";
-        String appCode = "YOUR_APP_CODE";
+        String baseUrl = "https://domain";
+        String accountId = "ACC_ID";
+        String appCode = "APP_CODE";
         YolbilNavigationBundleBuilder navigationBundleBuilder = new YolbilNavigationBundleBuilder(
-                baseUrl, accountId, appCode, snapLocationSourceProxy.getLocationSource()
+                baseUrl, accountId, appCode, snapLocationSourceProxy.getLocationSource(), RouteType.Pedestrian
         );
         navigationBundleBuilder.setOfflineEnabled(isOffline);
         navigationBundleBuilder.setBlueDotDataSourceEnabled(true);
         navigationBundleBuilder.setOfflineDataPath("/storage/emulated/0/yolbilxdata/TR.vtiles");
-
+        //optional
+        navigationBundleBuilder.setRequestEndpoint("/Service/api/v1/Routing/RouteAdvance");
         //custom line style set (optional)
         LineStyleBuilder lineStyleBuilder = new LineStyleBuilder();
         lineStyleBuilder.setColor(new Color((short)148, (short)148, (short)148, (short)100));
@@ -144,6 +146,12 @@ public class YolbilNavigationUsage {
             public boolean onNavigationRecalculated(NavigationResult navigationResult) {
                 Log.e(TAG, "onNavigationRecalculated: " + navigationResult);
                 return super.onNavigationRecalculated(navigationResult);
+            }
+
+            @java.lang.Override
+            public boolean onLocationChanged(NavigationCommand command) {
+                Log.e(TAG, "onLocationChangedbyCommandListener" + command.toString());
+                return super.onLocationChanged(command);
             }
         });
 

@@ -162,9 +162,9 @@ public class SecondFragment extends Fragment {
                     }
 
                     if (b) {
-                        initOnline(lastLocation.getCoordinate(), new MapPos(30.927677, 40.326687), b);
+                        initOnline(lastLocation.getCoordinate(), new MapPos(32.814785, 39.923197), false);
                     } else {
-                        initOnline(lastLocation.getCoordinate(), new MapPos(30.927677, 40.326687), b);
+                        initOnline(lastLocation.getCoordinate(), new MapPos(32.814785, 39.923197), false);
                     }
                     offlineSwitch.setChecked(b);
                 }
@@ -204,11 +204,12 @@ public class SecondFragment extends Fragment {
         ybOfflineStoredDataSource.startDownloadArea(bounds, 0, 10, new TileDownloadListener() {
             @Override
             public void onDownloadProgress(float progress) {
-
+                Log.e("progress", String.valueOf(progress));
             }
 
             @Override
             public void onDownloadCompleted() {
+                Log.e("onDownloadCompleted", "onDownloadCompleted");
 
             }
         });*/
@@ -262,10 +263,10 @@ public class SecondFragment extends Fragment {
             if(lastLocation != null) {
                 isLocationFound = false;
                 if (offlineSwitch.isChecked()) {
-                    initOnline(lastLocation.getCoordinate(),new MapPos(30.927677, 40.326687), true);
+                    initOnline(lastLocation.getCoordinate(),new MapPos(32.814785, 39.923197), false);
 
                 } else {
-                    initOnline(lastLocation.getCoordinate(),new MapPos(30.927677, 40.326687), false);
+                    initOnline(lastLocation.getCoordinate(),new MapPos(32.814785, 39.923197), false);
                 }
             }
         }catch (Exception e){
@@ -279,7 +280,7 @@ public class SecondFragment extends Fragment {
             public void onLocationChange(Location location) {
                 lastLocation = location;
                 if(!isLocationFound){
-                    //initOnline(location.getCoordinate(), new MapPos(30.927677, 37.326687),false);
+                    initOnline(location.getCoordinate(), new MapPos(32.814785, 39.923197),false);
                     isLocationFound = true;
                 }
                 //mapViewObject.setDeviceOrientationFocused(true);
