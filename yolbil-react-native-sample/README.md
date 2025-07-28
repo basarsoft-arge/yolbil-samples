@@ -12,13 +12,10 @@ mavenUser=your_username
 mavenPassword=your_password
 ```
 
-### 1. Plugin Configuration
+### 1. Plugin Configuration (in android/build.gradle)
 
 a. Apply the Plugin
 
-project -> android/build.gradle
-
-Add to root
 ```
 apply plugin: 'com.basarsoft.gradle.basarArtifactory'
 ```
@@ -66,7 +63,7 @@ packagingOptions{
     }
 ```
 
-##React Native Project Setup
+## React Native Project Setup
 
 Make sure the following tools are installed on your system:
 
@@ -77,13 +74,13 @@ Make sure the following tools are installed on your system:
 
 ---
 
-##Setup Steps
+## Setup Steps
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://your-repo-url.git
-cd project-directory
+git clone https://github.com/basarsoft-arge/yolbil-samples.git
+cd yolbil-react-native-sample
 ```
 
 ### 2. Install Dependencies
