@@ -1,12 +1,14 @@
-# Android development environment
+# Android Development Environment
 
-SDK Kurulumunun Yapılması
-SDK’e ulaşım Gradle’a eklenilen plugin vasıtasıyla olmaktadır. Bu plugin’i kullanabilmek için tarafımızdan bir kullanıcı adı ve şifre alarak gradle.properties dosyası içerisine şu şekilde tanımlamanız gerekmektedir.
+## SDK Installation
+
+Access to the SDK is managed through a Gradle plugin. To use this plugin, you must obtain a username and password from us and add the following lines to your gradle.properties file:
+
 ```
-mavenUser=kullanici_adiniz
-mavenPassword=sifreniz
+mavenUser=your_username
+mavenPassword=your_password
 ```
-Gradle Plugin’i projenize tanımlamak için ise aşağıdaki dosyalara ilgili satırları eklemeniz gerekmektedir.
+### 1. Plugin Configuration (in android/build.gradle)
 
 project -> build.gradle
 
