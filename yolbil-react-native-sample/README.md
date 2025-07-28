@@ -1,24 +1,30 @@
 
-# React Native development environment
+# React Native Development Environment
 
-## SDK Kurulumunun Yapılması
+This document provides step-by-step instructions on how to set up the development environment for a React Native project and integrate the required SDK.
 
-SDK’e ulaşım Gradle’a eklenilen plugin vasıtasıyla olmaktadır. Bu plugin’i kullanabilmek için tarafımızdan bir kullanıcı adı ve şifre alarak gradle.properties dosyası içerisine şu şekilde tanımlamanız gerekmektedir.
+## SDK Installation
+
+Access to the SDK is managed through a Gradle plugin. To use this plugin, you must obtain a username and password from us and add the following lines to your gradle.properties file:
+
 ```
-mavenUser=kullanici_adiniz
-mavenPassword=sifreniz
+mavenUser=your_username
+mavenPassword=your_password
 ```
 
-Gradle Plugin’i projenize tanımlamak için ise aşağıdaki dosyalara ilgili satırları eklemeniz gerekmektedir.
+### 1. Plugin Configuration
 
-project -> build.gradle
+a. Apply the Plugin
 
-// add to root
+project -> android/build.gradle
+
+Add to root
 ```
 apply plugin: 'com.basarsoft.gradle.basarArtifactory'
 ```
 
-// add to existing buildscript->dependencies
+b. Add to existing buildscript->dependencies
+
 ```
 buildscript {
     ...
@@ -33,7 +39,8 @@ buildscript {
 }
 ...
 ```
-app -> build.gradle
+### 2. SDK Dependencies (in app/build.gradle)
+
 ```
 dependencies {
     ...
@@ -41,8 +48,11 @@ dependencies {
     implementation 'us.inavi.libs:sensormanager:4.0.1'
     implementation 'us.inavi.libs:licensemanager:4.0.1'
 }
+
 ```
-// add to existing android
+
+Add to existing android
+
 ```
 packagingOptions{
         pickFirst("lib/**/*.so")
@@ -55,17 +65,10 @@ packagingOptions{
         }
     }
 ```
-//add to root
-```
-task copyDownloadableDepsToLibs(type: Copy) {
-    from configurations.implementation
-    into 'libs'
-}
-```
 
-## React Native Projesini Ayağa Kaldırma
+##React Native Project Setup
 
-React Native projesinin kurulumu için,aşağıdaki araçların sisteminizde yüklü olması gerekmektedir:
+Make sure the following tools are installed on your system:
 
 - Node.js(v14 ve üzeri)
 - Yarn
@@ -74,19 +77,29 @@ React Native projesinin kurulumu için,aşağıdaki araçların sisteminizde yü
 
 ---
 
-## Kurulum Adımları
+##Setup Steps
 
-### 1. Projeyi Klonlayın
+### 1. Clone the Repository
 
 ```bash
 git clone https://your-repo-url.git
-cd proje-klasoru
+cd project-directory
 ```
 
-### Bağımlılıkları Kurun
+### 2. Install Dependencies
 
+```bash
 yarn install
+```
 
+### 3. Start the Metro Server
+
+```bash
 yarn start
+```
 
+### 4. Run the Android App
+
+```bash
 npx react-native run-android
+```
