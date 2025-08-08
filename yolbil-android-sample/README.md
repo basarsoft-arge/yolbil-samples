@@ -36,6 +36,6 @@ app -> build.gradle
 ```
 dependencies {
     ...
-    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:2.5.0'
+    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.0.64'
 }
 ```

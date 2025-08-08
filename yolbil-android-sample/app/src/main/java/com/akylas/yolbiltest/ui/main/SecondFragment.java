@@ -1,64 +1,40 @@
 package com.akylas.yolbiltest.ui.main;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
-
 import android.animation.Animator;
 import android.annotation.SuppressLint;
-import android.app.DownloadManager;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.os.Bundle;
-import android.util.Log;
-import androidx.appcompat.app.AppCompatActivity;
-
-import com.android.volley.DefaultRetryPolicy;
+import com.akylas.yolbiltest.ui.main.constants.BaseSettings;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-
 import com.akylas.yolbiltest.R;
 import com.basarsoft.yolbil.components.Options;
-import com.basarsoft.yolbil.core.MapBounds;
+
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
-import com.basarsoft.yolbil.core.ScreenPos;
 import com.basarsoft.yolbil.core.StringVector;
 import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
-import com.basarsoft.yolbil.datasources.MemoryCacheTileDataSource;
-import com.basarsoft.yolbil.datasources.PersistentCacheTileDataSource;
-import com.basarsoft.yolbil.datasources.TileDownloadListener;
 import com.basarsoft.yolbil.datasources.YBOfflineStoredDataSource;
 import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.RasterTileLayer;
-import com.basarsoft.yolbil.layers.TileLoadListener;
 import com.basarsoft.yolbil.layers.VectorLayer;
 import com.basarsoft.yolbil.location.GPSLocationSource;
 import com.basarsoft.yolbil.location.Location;
@@ -69,23 +45,13 @@ import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator;
 import com.basarsoft.yolbil.projections.EPSG4326;
 import com.basarsoft.yolbil.routing.NavigationResult;
 import com.basarsoft.yolbil.routing.RoutingInstructionVector;
-import com.basarsoft.yolbil.routing.RoutingRequest;
-import com.basarsoft.yolbil.routing.RoutingResult;
-import com.basarsoft.yolbil.routing.ValhallaOfflineRoutingService;
-import com.basarsoft.yolbil.styles.LineEndType;
-import com.basarsoft.yolbil.styles.LineJoinType;
 import com.basarsoft.yolbil.styles.LineStyleBuilder;
 import com.basarsoft.yolbil.styles.MarkerStyle;
 import com.basarsoft.yolbil.styles.MarkerStyleBuilder;
 import com.basarsoft.yolbil.ui.DeviceOrientationFocusedListener;
-import com.basarsoft.yolbil.ui.MapClickInfo;
-import com.basarsoft.yolbil.ui.MapEventListener;
-import com.basarsoft.yolbil.ui.MapInteractionInfo;
 import com.basarsoft.yolbil.ui.MapView;
 import com.basarsoft.yolbil.utils.YolbilDownloadManager;
-import com.basarsoft.yolbil.vectorelements.Line;
 import com.basarsoft.yolbil.vectorelements.Marker;
-
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,8 +76,11 @@ public class SecondFragment extends Fragment {
     GPSLocationSource gpsLocationSource;
     Location lastLocation = null;
     Button focusPos,startNavigation;
+    private TextView navigationInfoText;
     boolean isLocationFound = false;
 
+    String accId = BaseSettings.INSTANCE.getAccountId();
+    String appCode = BaseSettings.INSTANCE.getAppCode();
 
     AssetsVoiceNarrator commandPlayer;
     public static SecondFragment newInstance() {
@@ -127,6 +96,7 @@ public class SecondFragment extends Fragment {
         View view = inflater.inflate(R.layout.second_fragment, container, false);
         offlineSwitch = view.findViewById(R.id.offlineSwitch);
         focusPos = view.findViewById(R.id.button2);
+        navigationInfoText = view.findViewById(R.id.navigationInfoText);
         startNavigation = view.findViewById(R.id.button3);
         focusPos.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -182,8 +152,13 @@ public class SecondFragment extends Fragment {
             }
         });
 
+        String tileUrl = "https://bms.basarsoft.com.tr/service/api/v1/map/Default"
+                + "?appcode=" + appCode
+                + "&accid=" + accId
+                + "&x={x}&y={y}&z={zoom}";
+
         silverBlocks = new MapPos(32.836262, 39.960160);
-        final HTTPTileDataSource httpTileDataSource = new HTTPTileDataSource(0, 18, "https://bms.basarsoft.com.tr/service/api/v1/map/Default?appcode=YOURT_APP_CODE&accid=YOUR_ACC_ID&&x={x}&y={y}&z={zoom}");
+        final HTTPTileDataSource httpTileDataSource = new HTTPTileDataSource(0, 18, tileUrl);
         final StringVector subdomains = new StringVector();
         subdomains.add("1");
         subdomains.add("2");
@@ -361,8 +336,8 @@ public class SecondFragment extends Fragment {
 
     private void sendAutoSuggestionRequest() {
         String url = "https://bms.basarsoft.com.tr/Service/api/v1/AutoSuggestion/Search"
-                + "?accId=YOUR_ACC_ID"
-                + "&appCode=YOUR_APP_CODE"
+                + "?accId=" +accId
+                + "&appCode="+appCode
                 + "&words=atatürk"
                 + "&limit=10"
                 + "&lat=0"
@@ -537,14 +512,15 @@ public class SecondFragment extends Fragment {
 
             vectorLayerMarker = new VectorLayer(vectorDataSourceMarker);
             mapViewObject.getLayers().add(vectorLayerMarker);
+            if (usage == null) {
+                usage = new YolbilNavigationUsage(navigationInfoText);
+            }
 
-            usage = new YolbilNavigationUsage();
-            NavigationResult navigationResult =
-                    usage.fullExample(mapViewObject, from, mapPosTo, isOffline, gpsLocationSource);
+
+            NavigationResult navigationResult = usage.fullExample(mapViewObject, from, mapPosTo, isOffline, gpsLocationSource);
 
             RoutingInstructionVector instructions = navigationResult.getInstructions();
             Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
-
             for (int i = 0; i < instructions.size(); i++) {
                 Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
             }
