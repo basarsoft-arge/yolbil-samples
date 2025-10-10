@@ -8,6 +8,11 @@ Access to the SDK is managed through a Gradle plugin. To use this plugin, you mu
 mavenUser=your_username
 mavenPassword=your_password
 ```
+
+```
+Gradle ve Agp versiyonunu güncelleyiniz. 
+```
+
 ### 1. Plugin Configuration (in android/build.gradle)
 
 project -> build.gradle
@@ -27,7 +32,7 @@ buildscript {
     }
     dependencies {
         ...
-        classpath 'com.basarsoft.gradle:artifactory-all:4.2.1'
+        classpath 'com.basarsoft.gradle:artifactory-all:4.3.1'
     }
 }
 ...
@@ -36,6 +41,10 @@ app -> build.gradle
 ```
 dependencies {
     ...
-    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.0.64'
+    implementation 'com.basarsoft.yolbil:yolbil-mobile-sdk:0.0.94'
+    
+    implementation("us.inavi.libs:licensemanager:4.0.7")
+    implementation("us.inavi.libs:sensormanager:4.0.7")
+    
 }
 ```
