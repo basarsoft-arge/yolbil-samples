@@ -1,0 +1,10 @@
+Pods/
+
+Podfile.lock
+
+Packages
+.build/
+xcuserdata
+DerivedData/
+*.xcodeproj
+*.xcworkspace

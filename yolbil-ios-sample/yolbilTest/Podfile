@@ -1,0 +1,30 @@
+# Uncomment the next line to define a global platform for your project
+# platform :ios, '9.0'
+source 'https://git.basarsoft.com.tr/public-repo/inavi-pod-repo.git'
+
+target 'yolbilTest' do
+  # Comment the next line if you don't want to use dynamic frameworks
+  use_frameworks!
+ 
+  platform :ios, '13.0'
+  pod 'YolbilMobileSDK', '2.5.7'
+  pod 'INVSensorManager'
+  pod 'INVPackageManager'
+  pod 'INVHelper'
+  # pod 'INVPositioner' 
+  # pod 'INVRouting'
+  # pod 'INVManifest'
+  # pod 'INVNotificationService'
+
+  # Pods for yolbilTest
+
+  target 'yolbilTestTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
+
+  target 'yolbilTestUITests' do
+    # Pods for testing
+  end
+
+end
