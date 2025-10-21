@@ -27,7 +27,7 @@ Android minimum SDK versiyonu 24 veya üzeri olmalıdır.
 minSdkVersion = 24
 ```
 
-> Not: Example projede minSdkVersion >= 24 olacak şekilde ayarlayın.
+> Not: Projede minSdkVersion >= 24 olacak şekilde ayarlayın.
 
 ## 3) package.json bağımlılığı
 
