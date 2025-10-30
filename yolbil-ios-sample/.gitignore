@@ -8,3 +8,6 @@ xcuserdata
 DerivedData/
 *.xcodeproj
 *.xcworkspace
+
+# Sensitive API credentials
+Secrets.swift

@@ -2,6 +2,28 @@
 
 Bu doküman, iOS projelerinize CocoaPods kullanarak yeni framework eklemeyi ve sıfırdan oluşturduğunuz bir projeye Yolbil SDK ve ilgili bağımlılıkları entegre etmeyi adım adım anlatır.
 
+## ⚠️ API Kimlik Bilgilerini Yapılandırma (ÖNEMLİ!)
+
+Projeyi çalıştırmadan önce **mutlaka** API kimlik bilgilerinizi yapılandırmalısınız:
+
+### 1. Secrets.swift Dosyasını Oluşturun
+```bash
+cd yolbilTest/yolbilTest/Utilities
+cp Secrets.swift.template Secrets.swift
+```
+
+### 2. API Kimlik Bilgilerinizi Ekleyin
+`Secrets.swift` dosyasını açın ve Yolbil dashboard'unuzdan aldığınız gerçek değerlerle güncelleyin:
+
+```swift
+enum Secrets {
+    static let appCode = "YOUR_ACTUAL_APP_CODE"
+    static let accountId = "YOUR_ACTUAL_ACCOUNT_ID"
+}
+```
+
+> **Not:** `Secrets.swift` dosyası `.gitignore`'a eklenmiştir ve **asla** commit edilmemelidir. Sadece `Secrets.swift.template` dosyası repository'de tutulur.
+
 ### Önkoşullar
 - **Xcode** yüklü olmalı.
 - **CocoaPods** sisteminizde kurulu olmalı. Kurulu değilse aşağıdaki komutlardan biriyle kurulumu yapabilirsiniz:

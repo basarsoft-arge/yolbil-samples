@@ -33,7 +33,7 @@ enum Constants {
         // For tiles and services we may append appcode/accid as query params where needed
         static let baseURL = host + mapBasePath
         static let vectorTileURL = host + vectorTileBasePath
-        static let appCode = "appCode"
-        static let accountId = "accountId"
+        static let appCode = Secrets.appCode
+        static let accountId = Secrets.accountId
     }
 }
