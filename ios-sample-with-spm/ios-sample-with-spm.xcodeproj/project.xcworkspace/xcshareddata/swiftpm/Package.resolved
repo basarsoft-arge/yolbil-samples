@@ -1,0 +1,15 @@
+{
+  "originHash" : "2fc0c5ec1a89208c8a5a66502d3df1c17f45a256df1bf44ee442431e367686ef",
+  "pins" : [
+    {
+      "identity" : "basarsoft-pod-repo",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/basarsoft-arge/basarsoft-pod-repo.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "b1ae6c9e6f0f0134328536542d1f09e2c1a21f34"
+      }
+    }
+  ],
+  "version" : 3
+}

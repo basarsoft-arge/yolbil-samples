@@ -11,7 +11,7 @@ import SwiftUI
 struct ios_sample_with_spmApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MapContainerView()
         }
     }
 }

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6AF999E32EB34E5200779FB3 /* YolbilMobileSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 6AF999E22EB34E5200779FB3 /* YolbilMobileSDK */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6AF999902EB34D3500779FB3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6AF999E32EB34E5200779FB3 /* YolbilMobileSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = "ios-sample-with-spm";
 			packageProductDependencies = (
+				6AF999E22EB34E5200779FB3 /* YolbilMobileSDK */,
 			);
 			productName = "ios-sample-with-spm";
 			productReference = 6AF999822EB34D3300779FB3 /* ios-sample-with-spm.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 6AF999792EB34D3300779FB3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6AF999E12EB34E5200779FB3 /* XCRemoteSwiftPackageReference "basarsoft-pod-repo" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6AF999832EB34D3300779FB3 /* Products */;
 			projectDirPath = "";
@@ -400,11 +409,14 @@
 				DEVELOPMENT_TEAM = YH4NUPFH74;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Arka planda da doğru yönlendirme için konumunuza ihtiyaç duyuyoruz";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -432,11 +444,14 @@
 				DEVELOPMENT_TEAM = YH4NUPFH74;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Arka planda da doğru yönlendirme için konumunuza ihtiyaç duyuyoruz";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -578,6 +593,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6AF999E12EB34E5200779FB3 /* XCRemoteSwiftPackageReference "basarsoft-pod-repo" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/basarsoft-arge/basarsoft-pod-repo.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6AF999E22EB34E5200779FB3 /* YolbilMobileSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6AF999E12EB34E5200779FB3 /* XCRemoteSwiftPackageReference "basarsoft-pod-repo" */;
+			productName = YolbilMobileSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6AF9997A2EB34D3300779FB3 /* Project object */;
 }
