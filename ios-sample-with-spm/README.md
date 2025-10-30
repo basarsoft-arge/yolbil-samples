@@ -64,6 +64,63 @@ enum Secrets {
    - Bir simulator veya gerçek cihaz seçin
    - ⌘R ile çalıştırın
 
+## 📦 Swift Package Manager (SPM) ile Manuel Kurulum
+
+Eğer sıfırdan yeni bir projeye Yolbil SDK'yı eklemek istiyorsanız:
+
+### 1. Xcode'da Package Ekleyin
+1. Xcode'da projenizi açın
+2. **File → Add Package Dependencies** menüsüne gidin
+3. Arama kutusuna şu URL'yi girin:
+   ```
+   https://github.com/basarsoft-arge/basarsoft-pod-repo.git
+   ```
+4. **Add Package** butonuna tıklayın
+5. Version seçimini yapın (örn: `2.5.2-spm` veya `Up to Next Major Version`)
+6. Hedef target'ınızı seçin ve **Add Package** ile tamamlayın
+
+### 2. Kimlik Doğrulama (Gerekirse)
+
+Eğer private repository erişimi gerekiyorsa, `~/.netrc` dosyasını oluşturun:
+
+```bash
+# Dosyayı oluşturun veya düzenleyin
+nano ~/.netrc
+```
+
+Aşağıdaki içeriği ekleyin (kendi kimlik bilgilerinizle değiştirin):
+
+```
+machine artifactory.basarsoft.com.tr
+login YOUR_ARTIFACTORY_USERNAME
+password YOUR_ARTIFACTORY_PASSWORD
+```
+
+Dosya izinlerini ayarlayın:
+```bash
+chmod 600 ~/.netrc
+```
+
+### 3. Kodda Kullanım
+
+Swift dosyanızda import edin:
+
+```swift
+import YolbilMobileSDK
+
+// Harita kullanımı
+let mapView = YolbilMap()
+```
+
+### 4. Package Güncellemeleri
+
+Package'ı güncellemek için:
+1. **File → Packages → Update to Latest Package Versions**
+2. Veya terminal'den:
+   ```bash
+   xcodebuild -resolvePackageDependencies
+   ```
+
 ## 📱 Kullanım
 
 ### Temel Harita İşlemleri
@@ -162,7 +219,48 @@ Proje, harita görselleri için önceden yüklenmiş stil paketleri içerir:
 ## 📚 Bağımlılıklar
 
 Bu proje Swift Package Manager kullanır. Bağımlılıklar:
-- YolbilMobileSDK (SPM üzerinden)
+
+- **YolbilMobileSDK** - Ana SDK
+  - Repository: [https://github.com/basarsoft-arge/basarsoft-pod-repo.git](https://github.com/basarsoft-arge/basarsoft-pod-repo.git)
+  - Son sürüm: 2.5.2-spm
+
+### Ek Modüller (İsteğe Bağlı)
+Aynı repository üzerinden şu modüller de eklenebilir:
+- INVSensorManager - Sensör yönetimi
+- INVPackageManager - Paket yönetimi
+- INVHelper - Yardımcı fonksiyonlar
+- INVPositioner - Konum belirleme
+- INVRouting - Rota hesaplama
+- INVManifest - Manifest yönetimi
+- INVNotificationService - Bildirim servisi
+
+## 🆚 CocoaPods vs SPM
+
+Bu proje **Swift Package Manager (SPM)** kullanır. CocoaPods kullanımı için `yolbil-ios-sample` projesine bakın.
+
+| Özellik | SPM (Bu Proje) | CocoaPods |
+|---------|----------------|-----------|
+| **Xcode Entegrasyonu** | ✅ Native, doğrudan desteklenir | ⚠️ Ek kurulum gerekli |
+| **Kurulum** | File → Add Package Dependencies | `pod install` komutu |
+| **Bağımlılık Çözümü** | Otomatik | Manuel (`pod update`) |
+| **Workspace** | ❌ Gerekli değil (`.xcodeproj`) | ✅ Gerekli (`.xcworkspace`) |
+| **Performans** | ⚡ Daha hızlı | 🐢 Biraz daha yavaş |
+| **Git Entegrasyonu** | ✅ Package.resolved ile | ⚠️ Podfile.lock ile |
+| **Çakışma Çözümü** | Otomatik | Manuel müdahale gerekebilir |
+| **Xcode Sürümü** | Xcode 11+ | Tüm versiyonlar |
+
+### Hangi Yöntemi Seçmelisiniz?
+
+**SPM'i tercih edin:**
+- ✅ Yeni projeler için
+- ✅ Native Xcode deneyimi istiyorsanız
+- ✅ Daha hızlı build süreleri istiyorsanız
+- ✅ Ek araç kurulumu istemiyorsanız
+
+**CocoaPods'u tercih edin:**
+- ✅ Eski projelerde zaten CocoaPods kullanılıyorsa
+- ✅ SPM'de bulunmayan bağımlılıklara ihtiyacınız varsa
+- ✅ Daha detaylı konfigürasyon kontrolü istiyorsanız
 
 ## 📄 Lisans
 
@@ -171,17 +269,12 @@ Bu örnek proje, Yolbil SDK kullanımını göstermek amacıyla hazırlanmışt�
 ## 🤝 Destek
 
 Sorularınız için:
-- 📧 Email: [destek@basarsoft.com.tr](mailto:destek@basarsoft.com.tr)
-- 📖 Dokümantasyon: [Yolbil Docs](https://docs.yolbil.com)
+- 📧 Email: [arge@basarsoft.com.tr](mailto:arge@basarsoft.com.tr)
+- 📖 Dokümantasyon: [Basarsoft](https://basarsoft.com.tr)
+- 🔗 SPM Repository: [basarsoft-pod-repo](https://github.com/basarsoft-arge/basarsoft-pod-repo)
 
-## 🆚 CocoaPods vs SPM
+## 📚 Ek Kaynaklar
 
-Bu proje SPM kullanır. CocoaPods kullanımı için `yolbil-ios-sample` projesine bakın.
-
-| Özellik | SPM | CocoaPods |
-|---------|-----|-----------|
-| Xcode Entegrasyonu | Native | Ek kurulum gerekli |
-| Bağımlılık Çözümü | Otomatik | `pod install` gerekli |
-| Workspace | Gerekli değil | .xcworkspace gerekli |
-| Hız | Daha hızlı | Biraz daha yavaş |
-
+- [Basarsoft Pod Repository](https://github.com/basarsoft-arge/basarsoft-pod-repo) - SDK ve tüm modüller
+- [Swift Package Manager Dokümantasyonu](https://swift.org/package-manager/)
+- [Xcode Package Dependencies Rehberi](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app)
