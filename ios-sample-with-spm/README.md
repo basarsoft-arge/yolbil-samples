@@ -234,34 +234,6 @@ Aynı repository üzerinden şu modüller de eklenebilir:
 - INVManifest - Manifest yönetimi
 - INVNotificationService - Bildirim servisi
 
-## 🆚 CocoaPods vs SPM
-
-Bu proje **Swift Package Manager (SPM)** kullanır. CocoaPods kullanımı için `yolbil-ios-sample` projesine bakın.
-
-| Özellik | SPM (Bu Proje) | CocoaPods |
-|---------|----------------|-----------|
-| **Xcode Entegrasyonu** | ✅ Native, doğrudan desteklenir | ⚠️ Ek kurulum gerekli |
-| **Kurulum** | File → Add Package Dependencies | `pod install` komutu |
-| **Bağımlılık Çözümü** | Otomatik | Manuel (`pod update`) |
-| **Workspace** | ❌ Gerekli değil (`.xcodeproj`) | ✅ Gerekli (`.xcworkspace`) |
-| **Performans** | ⚡ Daha hızlı | 🐢 Biraz daha yavaş |
-| **Git Entegrasyonu** | ✅ Package.resolved ile | ⚠️ Podfile.lock ile |
-| **Çakışma Çözümü** | Otomatik | Manuel müdahale gerekebilir |
-| **Xcode Sürümü** | Xcode 11+ | Tüm versiyonlar |
-
-### Hangi Yöntemi Seçmelisiniz?
-
-**SPM'i tercih edin:**
-- ✅ Yeni projeler için
-- ✅ Native Xcode deneyimi istiyorsanız
-- ✅ Daha hızlı build süreleri istiyorsanız
-- ✅ Ek araç kurulumu istemiyorsanız
-
-**CocoaPods'u tercih edin:**
-- ✅ Eski projelerde zaten CocoaPods kullanılıyorsa
-- ✅ SPM'de bulunmayan bağımlılıklara ihtiyacınız varsa
-- ✅ Daha detaylı konfigürasyon kontrolü istiyorsanız
-
 ## 📄 Lisans
 
 Bu örnek proje, Yolbil SDK kullanımını göstermek amacıyla hazırlanmıştır.
