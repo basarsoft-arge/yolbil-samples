@@ -62,9 +62,11 @@ public class YolbilNavigationUsage {
 
     private TextView navigationInfoText;
 
+    // UI tarafına kalan mesafe/süre yazabilmek için TextView referansı alır.
     public YolbilNavigationUsage(TextView navigationInfoText) {
         this.navigationInfoText = navigationInfoText;
     }
+    // Harita üzerinde rota talep edip gerekli layer'ları hazırlar; NavigationResult döndürür.
     @SuppressLint("MissingPermission")
     NavigationResult fullExample(MapView mapView, MapPos start, MapPos end, boolean isOffline, GPSLocationSource locationSource) {
         this.mapView = mapView;
@@ -119,24 +121,28 @@ public class YolbilNavigationUsage {
         return navigationResult;
     }
 
+    // Mavi nokta katmanını haritaya ekleyerek kullanıcı konumunun çizilmesini sağlar.
     void addLocationSourceToMap(MapView mapView) {
         BlueDotDataSource blueDotDataSource = new BlueDotDataSource(new EPSG4326(), snapLocationSourceProxy.getBlueDotDataSource().getLocationSource());
         blueDotVectorLayer = new VectorLayer(blueDotDataSource);
         mapView.getLayers().add(blueDotVectorLayer);
     }
 
+    // Harita üzerinde manuel konum güncellemesi yapmaya yarar (simülasyon/test için).
     void updateLocation(MapPos mapPos) {
         Location newLocation = new Location();
         newLocation.setCoordinate(mapPos);
         snapLocationSourceProxy.updateLocation(newLocation);
     }
 
+    // Başlatılmış navigasyonu durdurup ilgili layer'ları temizler.
     void stopNavigation() {
         if (blueDotVectorLayer != null) mapView.getLayers().remove(blueDotVectorLayer);
         mapView.getLayers().removeAll(bundle.getLayers());
         bundle.stopNavigation();
     }
 
+    // YolbilNavigationBundle'ı çevrim içi/çevrim dışı ayarlarla hazırlar ve komut dinleyicilerini bağlar.
     YolbilNavigationBundle getNavigationBundle(boolean isOffline) {
         String baseUrl = BaseSettings.INSTANCE.getBASE_URL();
         String accountId = BaseSettings.INSTANCE.getAccountId();
@@ -208,11 +214,13 @@ public class YolbilNavigationUsage {
         return navigationBundleBuilder.build();
     }
 
+    // YolbilNavigationBundle içindeki çizim katmanlarını MapView'a ekler.
     void addNavigationToMapLayers(MapView mapView) {
         mapView.getLayers().addAll(bundle.getLayers());
     }
     private boolean isFirstLocation = true;
 
+    // Rota hazır olduğunda gerçek zamanlı navigasyonu başlatır ve haritayı kullanıcıya odaklar.
     @SuppressLint("MissingPermission")
     void startNavigation() {
         if (navigationResult != null && mapView != null) {

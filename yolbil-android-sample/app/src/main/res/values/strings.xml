@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">YolbilTest</string>
+    <string name="route_loading_text">Rota oluşturuluyor</string>
 </resources>

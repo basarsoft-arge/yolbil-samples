@@ -4,6 +4,7 @@ import org.json.JSONException;
 import android.animation.Animator;
 import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -23,6 +24,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.akylas.yolbiltest.R;
 import com.basarsoft.yolbil.components.Options;
@@ -77,17 +79,20 @@ public class SecondFragment extends Fragment {
     Location lastLocation = null;
     Button focusPos,startNavigation;
     private TextView navigationInfoText;
+    private View routeLoadingOverlay;
+    private TextView routeLoadingText;
     boolean isLocationFound = false;
 
     String accId = BaseSettings.INSTANCE.getAccountId();
     String appCode = BaseSettings.INSTANCE.getAppCode();
+
+    private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
     AssetsVoiceNarrator commandPlayer;
     public static SecondFragment newInstance() {
         return new SecondFragment();
     }
 
-    @SuppressLint("MissingPermission")
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -98,6 +103,8 @@ public class SecondFragment extends Fragment {
         focusPos = view.findViewById(R.id.button2);
         navigationInfoText = view.findViewById(R.id.navigationInfoText);
         startNavigation = view.findViewById(R.id.button3);
+        routeLoadingOverlay = view.findViewById(R.id.routeLoadingOverlay);
+        routeLoadingText = view.findViewById(R.id.routeLoadingText);
         focusPos.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -229,7 +236,6 @@ public class SecondFragment extends Fragment {
         });*/
         return view;
     }
-    @SuppressLint("MissingPermission")
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -248,20 +254,12 @@ public class SecondFragment extends Fragment {
             Log.e("valhalla", e.getMessage());
         }
 
-        gpsLocationSource = new GPSLocationSource(getActivity());
-        gpsLocationSource.startLocationUpdates();
-        gpsLocationSource.addListener(new LocationListener(){
-            @Override
-            public void onLocationChange(Location location) {
-                lastLocation = location;
-                if(!isLocationFound){
-                    initOnline(location.getCoordinate(), new MapPos(32.814785, 39.923197),false);
-                    isLocationFound = true;
-                }
-                //mapViewObject.setDeviceOrientationFocused(true);
-                //mapViewObject.setFocusPos(location.getCoordinate(), 1);
-            }
-        });
+        if (hasLocationPermission()) {
+            startLocationUpdates();
+        } else {
+            requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION_PERMISSION);
+        }
 
         mapViewObject.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
@@ -334,6 +332,7 @@ public class SecondFragment extends Fragment {
 
     }
 
+    // Yolbil servisinden örnek bir adres önerisi isteği gönderip sonucu loglar.
     private void sendAutoSuggestionRequest() {
         String url = "https://bms.basarsoft.com.tr/Service/api/v1/AutoSuggestion/Search"
                 + "?accId=" +accId
@@ -381,6 +380,7 @@ public class SecondFragment extends Fragment {
         RequestQueue requestQueue = Volley.newRequestQueue(getActivity());
         requestQueue.add(jsonArrayRequest);
     }
+    // Offline veri paketini indirirken kullanıcıya süreç hakkında bilgi verir.
     private void startDownload(File destinationFile, String downloadUrl) {
         // İndirilen dosyanın kaydedileceği yer
 
@@ -489,6 +489,7 @@ public class SecondFragment extends Fragment {
         Log.d(TAG, "onCreateAnimator " + result);
         return result;
     }
+    // Kullanıcı konumu ile hedef arasındaki rotayı hesaplayıp harita katmanlarını günceller.
     public void initOnline(MapPos from, MapPos mapPosTo, boolean isOffline) {
         if (!isLocationFound) {
             isLocationFound = true;
@@ -516,13 +517,82 @@ public class SecondFragment extends Fragment {
                 usage = new YolbilNavigationUsage(navigationInfoText);
             }
 
+            toggleRouteLoading(true, getString(R.string.route_loading_text));
+            final MapPos startPos = from;
+            final MapPos destinationPos = mapPosTo;
+            final boolean offline = isOffline;
 
-            NavigationResult navigationResult = usage.fullExample(mapViewObject, from, mapPosTo, isOffline, gpsLocationSource);
+            routeLoadingOverlay.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        // Yolbil servisinden rota isteğini gönderip NavigationResult bekler.
+                        NavigationResult navigationResult = usage.fullExample(mapViewObject, startPos, destinationPos, offline, gpsLocationSource);
 
-            RoutingInstructionVector instructions = navigationResult.getInstructions();
-            Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
-            for (int i = 0; i < instructions.size(); i++) {
-                Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
+                        if (navigationResult != null) {
+                            RoutingInstructionVector instructions = navigationResult.getInstructions();
+                            Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
+                            for (int i = 0; i < instructions.size(); i++) {
+                                Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
+                            }
+                        }
+                    } finally {
+                        toggleRouteLoading(false, null);
+                    }
+                }
+            });
+        }
+    }
+
+    private void toggleRouteLoading(final boolean show, @Nullable final String message) {
+        if (routeLoadingOverlay == null || getActivity() == null) {
+            return;
+        }
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                routeLoadingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
+                if (message != null && routeLoadingText != null) {
+                    routeLoadingText.setText(message);
+                }
+            }
+        });
+    }
+
+    // Hem ince hem de kaba konum izinlerini kontrol eder.
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // GPSLocationSource'u devreye alıp gelen konuma göre ilk rotayı tetikler.
+    @SuppressLint("MissingPermission")
+    private void startLocationUpdates() {
+        if (gpsLocationSource == null) {
+            gpsLocationSource = new GPSLocationSource(getActivity());
+        }
+        gpsLocationSource.startLocationUpdates();
+        gpsLocationSource.addListener(new LocationListener() {
+            @Override
+            public void onLocationChange(Location location) {
+                lastLocation = location;
+                if (!isLocationFound) {
+                    initOnline(location.getCoordinate(), new MapPos(43.74083, 37.57444), false);
+                    isLocationFound = true;
+                }
+            }
+        });
+    }
+
+    // İzin isteği geri dönüşünü ele alır ve gerekirse kullanıcıyı bilgilendirir.
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startLocationUpdates();
+            } else {
+                Toast.makeText(getContext(), "Konum izni olmadan navigasyon başlatılamaz", Toast.LENGTH_LONG).show();
             }
         }
     }
