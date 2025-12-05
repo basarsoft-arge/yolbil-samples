@@ -55,6 +55,7 @@ public class YolbilNavigationUsage {
     private Location lastLocation = null;
     private NavigationResult navigationResult;
     private VectorLayer blueDotVectorLayer = null;
+    private BlueDotDataSource blueDotDataSource = null;
 
     private NavigationResultVector navigationResults = null;
 
@@ -81,9 +82,12 @@ public class YolbilNavigationUsage {
             }
         });
 
-        BlueDotDataSource blueDotDataSource = new BlueDotDataSource(new EPSG4326(), locationSource);
+        // SDK'nın varsayılan BlueDot ikonunu kullanabilmek için datasource'u init edip saklarız.
+        blueDotDataSource = new BlueDotDataSource(new EPSG4326(), locationSource);
+        blueDotDataSource.init();
         snapLocationSourceProxy = new LocationSourceSnapProxy(blueDotDataSource);
         snapLocationSourceProxy.setMaxSnapDistanceMeter(500);
+        snapLocationSourceProxy.init();
         this.addLocationSourceToMap(mapView);
 
         bundle = this.getNavigationBundle(isOffline);
@@ -123,9 +127,26 @@ public class YolbilNavigationUsage {
 
     // Mavi nokta katmanını haritaya ekleyerek kullanıcı konumunun çizilmesini sağlar.
     void addLocationSourceToMap(MapView mapView) {
-        BlueDotDataSource blueDotDataSource = new BlueDotDataSource(new EPSG4326(), snapLocationSourceProxy.getBlueDotDataSource().getLocationSource());
-        blueDotVectorLayer = new VectorLayer(blueDotDataSource);
-        mapView.getLayers().add(blueDotVectorLayer);
+        if (blueDotDataSource == null && snapLocationSourceProxy != null) {
+            blueDotDataSource = snapLocationSourceProxy.getBlueDotDataSource();
+        }
+
+        if (blueDotVectorLayer == null && blueDotDataSource != null) {
+            blueDotVectorLayer = new VectorLayer(blueDotDataSource);
+        }
+
+        if (blueDotVectorLayer != null) {
+            boolean layerExists = false;
+            for (int i = 0; i < mapView.getLayers().count(); i++) {
+                if (mapView.getLayers().get(i) == blueDotVectorLayer) {
+                    layerExists = true;
+                    break;
+                }
+            }
+            if (!layerExists) {
+                mapView.getLayers().add(blueDotVectorLayer);
+            }
+        }
     }
 
     // Harita üzerinde manuel konum güncellemesi yapmaya yarar (simülasyon/test için).
@@ -140,6 +161,7 @@ public class YolbilNavigationUsage {
         if (blueDotVectorLayer != null) mapView.getLayers().remove(blueDotVectorLayer);
         mapView.getLayers().removeAll(bundle.getLayers());
         bundle.stopNavigation();
+        blueDotVectorLayer = null;
     }
 
     // YolbilNavigationBundle'ı çevrim içi/çevrim dışı ayarlarla hazırlar ve komut dinleyicilerini bağlar.

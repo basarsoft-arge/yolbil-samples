@@ -577,7 +577,7 @@ public class SecondFragment extends Fragment {
             public void onLocationChange(Location location) {
                 lastLocation = location;
                 if (!isLocationFound) {
-                    initOnline(location.getCoordinate(), new MapPos(43.74083, 37.57444), false);
+                    initOnline(location.getCoordinate(), new MapPos(32.814785, 39.923197), false);
                     isLocationFound = true;
                 }
             }
