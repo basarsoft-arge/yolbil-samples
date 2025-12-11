@@ -9,8 +9,11 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
+
 import com.akylas.yolbiltest.ui.main.constants.BaseSettings;
 import com.basarsoft.yolbil.core.MapPos;
+import com.basarsoft.yolbil.core.MapPosVector;
 import com.basarsoft.yolbil.datasources.BlueDotDataSource;
 import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.VectorLayer;
@@ -43,6 +46,8 @@ import com.basarsoft.yolbil.utils.AssetUtils;
 import com.basarsoft.yolbil.utils.ZippedAssetPackage;
 import com.basarsoft.yolbil.routing.NavigationResultVector;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class YolbilNavigationUsage {
@@ -60,6 +65,13 @@ public class YolbilNavigationUsage {
     private NavigationResultVector navigationResults = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Handler simulationHandler = new Handler(Looper.getMainLooper());
+    private static final long SIMULATION_STEP_MS = 1000L;
+    private Runnable simulationRunnable;
+    private final List<MapPos> simulationPoints = new ArrayList<>();
+    private int simulationIndex = 0;
+    private boolean simulationRunning = false;
+    private SimulationListener simulationListener;
 
     private TextView navigationInfoText;
 
@@ -164,6 +176,106 @@ public class YolbilNavigationUsage {
         blueDotVectorLayer = null;
     }
 
+    public interface SimulationListener {
+        void onSimulationFinished();
+    }
+
+    public synchronized boolean startSimulation(@Nullable SimulationListener listener) {
+        if (simulationRunning) {
+            Log.w(TAG, "startSimulation: Simulation already running");
+            return false;
+        }
+
+        if (navigationResult == null || navigationResult.getPoints() == null || navigationResult.getPoints().size() <= 0) {
+            Log.w(TAG, "startSimulation: No navigation result available");
+            return false;
+        }
+
+        simulationPoints.clear();
+        MapPosVector points = navigationResult.getPoints();
+        for (int i = 0; i < points.size(); i++) {
+            simulationPoints.add(points.get(i));
+        }
+
+        if (simulationPoints.size() < 2) {
+            Log.w(TAG, "startSimulation: Not enough points to simulate");
+            simulationPoints.clear();
+            return false;
+        }
+
+        simulationListener = listener;
+        simulationIndex = 0;
+        simulationRunning = true;
+        ensureDeviceOrientationFocus();
+        simulationRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!simulationRunning) {
+                    return;
+                }
+
+                if (simulationIndex >= simulationPoints.size()) {
+                    stopSimulationInternal(true);
+                    return;
+                }
+
+                MapPos mapPos = simulationPoints.get(simulationIndex++);
+                if (locationSource != null) {
+                    locationSource.sendMockLocation(mapPos);
+                }
+                if (lastLocation == null) {
+                    lastLocation = new Location();
+                }
+                lastLocation.setCoordinate(mapPos);
+                followBlueDot(lastLocation, false);
+                simulationHandler.postDelayed(this, SIMULATION_STEP_MS);
+            }
+        };
+        simulationHandler.post(simulationRunnable);
+        return true;
+    }
+
+    public synchronized void stopSimulation() {
+        stopSimulationInternal(true);
+    }
+
+    public boolean isSimulationRunning() {
+        return simulationRunning;
+    }
+
+    private void stopSimulationInternal(boolean notifyListener) {
+        if (!simulationRunning) {
+            if (notifyListener && simulationListener != null) {
+                simulationListener.onSimulationFinished();
+            }
+            simulationListener = null;
+            return;
+        }
+
+        simulationRunning = false;
+        simulationHandler.removeCallbacks(simulationRunnable);
+        simulationRunnable = null;
+        simulationPoints.clear();
+        simulationIndex = 0;
+        if (notifyListener && simulationListener != null) {
+            simulationListener.onSimulationFinished();
+        }
+        simulationListener = null;
+    }
+
+    /**
+     * MapView'in cihaz yön takip modunda olup olmadığını kontrol eder
+     */
+    private boolean ensureDeviceOrientationFocus() {
+        if (mapView == null) {
+            return false;
+        }
+        if (!mapView.isDeviceOrientationFocused()) {
+            mapView.setDeviceOrientationFocused(true);
+        }
+        return true;
+    }
+
     // YolbilNavigationBundle'ı çevrim içi/çevrim dışı ayarlarla hazırlar ve komut dinleyicilerini bağlar.
     YolbilNavigationBundle getNavigationBundle(boolean isOffline) {
         String baseUrl = BaseSettings.INSTANCE.getBASE_URL();
@@ -254,15 +366,80 @@ public class YolbilNavigationUsage {
             locationSource.addListener(new LocationListener() {
                 @Override
                 public void onLocationChange(Location location) {
+                    lastLocation = location;
+                    //Bluedot takibi sağlanır
+                    followBlueDot(location, isFirstLocation);
                     if (isFirstLocation) {
-                        mapView.setFocusPos(location.getCoordinate(), 1.0f);
-                        mapView.setZoom(17, 1.0f);
-                        mapView.setDeviceOrientationFocused(true);
                         isFirstLocation = false;
                     }
                 }
             });
         }
+    }
+
+    /**
+     * Haritayı mevcut BlueDot konumuna kilitleyerek kullanıcının "Ortala" isteğini yerine getirir.
+     * Önce snap proxy'den veri almaya çalışır
+     */
+    public boolean focusOnCurrentPosition() {
+        if (!ensureDeviceOrientationFocus()) {
+            return false;
+        }
+        boolean handled = followBlueDot(lastLocation, true);
+        if (!handled && mapView != null && lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
+            mapView.setFocusPos(lastLocation.getCoordinate(), 0.6f);
+            mapView.setZoom(17, 0.6f);
+            return true;
+        }
+        return handled;
+    }
+
+    /**
+     * BlueDot snap koordinatlarını veya verilen lokasyonu kullanarak haritayı takip modunda tutar.
+     * Yön bilgisi ile birlikte kamera rotasyonunu günceller
+     */
+    private boolean followBlueDot(@Nullable Location newLocation, boolean initialFocus) {
+        if (mapView == null || !mapView.isDeviceOrientationFocused()) {
+            return false;
+        }
+        MapPos focusPos = null;
+        if (snapLocationSourceProxy != null) {
+            focusPos = snapLocationSourceProxy.getShiftedCoordinate();
+        }
+        if (!isCoordinateValid(focusPos) && newLocation != null) {
+            MapPos fallback = newLocation.getCoordinate();
+            if (isCoordinateValid(fallback)) {
+                focusPos = fallback;
+            }
+        }
+        if (!isCoordinateValid(focusPos)) {
+            return false;
+        }
+        mapView.setFocusPos(focusPos, 0.6f);
+        if (snapLocationSourceProxy != null && snapLocationSourceProxy.getLastLocation() != null) {
+            float direction = (float) snapLocationSourceProxy.getLastLocation().getDirection();
+            mapView.setMapRotation(direction, 0.6f);
+        }
+        if (initialFocus) {
+            mapView.setZoom(17, 0.6f);
+            mapView.setTilt(45.0f, 0.6f);
+        }
+        return true;
+    }
+
+    /**
+     * Gelen MapPos'un gerçek bir koordinata karşılık gelip gelmediğini kontrol eder.
+     */
+    private boolean isCoordinateValid(@Nullable MapPos mapPos) {
+        if (mapPos == null) {
+            return false;
+        }
+        double x = mapPos.getX();
+        double y = mapPos.getY();
+        if (Double.isNaN(x) || Double.isNaN(y)) {
+            return false;
+        }
+        return !(Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6);
     }
 
 }

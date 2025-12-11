@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.MotionEvent;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
@@ -77,11 +78,14 @@ public class SecondFragment extends Fragment {
     YolbilNavigationUsage usage;
     GPSLocationSource gpsLocationSource;
     Location lastLocation = null;
-    Button focusPos,startNavigation;
+    Button focusPos,startNavigation, simulationButton, followButton;
     private TextView navigationInfoText;
     private View routeLoadingOverlay;
     private TextView routeLoadingText;
     boolean isLocationFound = false;
+    private boolean hasActiveRoute = false;
+    private boolean isSimulationActive = false;
+    private boolean isFollowModeActive = true;
 
     String accId = BaseSettings.INSTANCE.getAccountId();
     String appCode = BaseSettings.INSTANCE.getAppCode();
@@ -89,6 +93,20 @@ public class SecondFragment extends Fragment {
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
     AssetsVoiceNarrator commandPlayer;
+    private final YolbilNavigationUsage.SimulationListener simulationStateListener = new YolbilNavigationUsage.SimulationListener() {
+        @Override
+        public void onSimulationFinished() {
+            if (!isAdded()) {
+                return;
+            }
+            requireActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    handleSimulationFinished();
+                }
+            });
+        }
+    };
     public static SecondFragment newInstance() {
         return new SecondFragment();
     }
@@ -103,13 +121,16 @@ public class SecondFragment extends Fragment {
         focusPos = view.findViewById(R.id.button2);
         navigationInfoText = view.findViewById(R.id.navigationInfoText);
         startNavigation = view.findViewById(R.id.button3);
+        simulationButton = view.findViewById(R.id.buttonSimulation);
         routeLoadingOverlay = view.findViewById(R.id.routeLoadingOverlay);
         routeLoadingText = view.findViewById(R.id.routeLoadingText);
+        followButton = view.findViewById(R.id.followButton);
         focusPos.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 try {
-                    if (lastLocation != null) {
+                    boolean handledByNavigation = usage != null && usage.focusOnCurrentPosition();
+                    if (!handledByNavigation && lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
                         mapViewObject.setFocusPos(lastLocation.getCoordinate(), 1.0f);
                         mapViewObject.setZoom(17, 1.0f);
                     }
@@ -119,6 +140,13 @@ public class SecondFragment extends Fragment {
                 }
             }
         });
+        followButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                restoreFollowMode();
+            }
+        });
+        updateFollowButtonVisibility();
 
         startNavigation.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -128,6 +156,13 @@ public class SecondFragment extends Fragment {
                 }
             }
         });
+        simulationButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                handleSimulationButtonClick();
+            }
+        });
+        refreshSimulationButton();
         offlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -135,8 +170,14 @@ public class SecondFragment extends Fragment {
                 if(lastLocation != null) {
                     isLocationFound = false;
                     if (usage != null) {
+                        if (usage.isSimulationRunning()) {
+                            usage.stopSimulation();
+                        }
                         usage.stopNavigation();
                     }
+                    hasActiveRoute = false;
+                    isSimulationActive = false;
+                    refreshSimulationButton();
 
                     if (b) {
                         initOnline(lastLocation.getCoordinate(), new MapPos(32.814785, 39.923197), false);
@@ -150,6 +191,13 @@ public class SecondFragment extends Fragment {
         Button modeBtn = view.findViewById(R.id.modeButton);
 
         mapViewObject = view.findViewById(R.id.mapView);
+        mapViewObject.setOnTouchListener((v, event) -> {
+            int action = event.getAction();
+            if ((action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) && isFollowModeActive) {
+                disableFollowMode();
+            }
+            return false;
+        });
         modeBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -213,6 +261,8 @@ public class SecondFragment extends Fragment {
             @Override
             public void onDeviceOrientationFocusedChanged(boolean isDeviceOrientationFocusedChanged) {
                 Log.e("isDeviceOrientationFocusedChanged: ", String.valueOf(isDeviceOrientationFocusedChanged));
+                isFollowModeActive = isDeviceOrientationFocusedChanged;
+                updateFollowButtonVisibility();
             }
         });
 
@@ -494,9 +544,15 @@ public class SecondFragment extends Fragment {
         if (!isLocationFound) {
             isLocationFound = true;
             if (usage != null) {
+                if (usage.isSimulationRunning()) {
+                    usage.stopSimulation();
+                }
                 mapViewObject.getLayers().remove(vectorLayerMarker);
                 vectorDataSourceMarker.clear();
             }
+            hasActiveRoute = false;
+            isSimulationActive = false;
+            refreshSimulationButton();
 
             MarkerStyleBuilder markerStyleBuilder = new MarkerStyleBuilder();
             markerStyleBuilder.setColor(new Color(0xffff5031));
@@ -530,12 +586,16 @@ public class SecondFragment extends Fragment {
                         NavigationResult navigationResult = usage.fullExample(mapViewObject, startPos, destinationPos, offline, gpsLocationSource);
 
                         if (navigationResult != null) {
+                            hasActiveRoute = true;
                             RoutingInstructionVector instructions = navigationResult.getInstructions();
                             Log.e(TAG, "onViewCreated: nav result: " + navigationResult);
                             for (int i = 0; i < instructions.size(); i++) {
                                 Log.e(TAG, "onViewCreated: " + instructions.get(i).toString());
                             }
+                        } else {
+                            hasActiveRoute = false;
                         }
+                        refreshSimulationButton();
                     } finally {
                         toggleRouteLoading(false, null);
                     }
@@ -597,4 +657,110 @@ public class SecondFragment extends Fragment {
         }
     }
 
+    private void handleSimulationButtonClick() {
+        if (usage == null) {
+            Toast.makeText(requireContext(), R.string.simulation_not_ready, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (isSimulationActive) {
+            usage.stopSimulation();
+            return;
+        }
+
+        if (!hasActiveRoute) {
+            Toast.makeText(requireContext(), R.string.simulation_no_route, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (gpsLocationSource != null) {
+            gpsLocationSource.stopLocationUpdates();
+        }
+
+        boolean started = usage.startSimulation(simulationStateListener);
+        if (started) {
+            isSimulationActive = true;
+            refreshSimulationButton();
+        } else {
+            if (gpsLocationSource != null) {
+                gpsLocationSource.startLocationUpdates();
+            }
+            Toast.makeText(requireContext(), R.string.simulation_no_route, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleSimulationFinished() {
+        if (gpsLocationSource != null) {
+            gpsLocationSource.startLocationUpdates();
+        }
+        isSimulationActive = false;
+        refreshSimulationButton();
+    }
+
+    private void refreshSimulationButton() {
+        if (simulationButton == null) {
+            return;
+        }
+        simulationButton.setEnabled(hasActiveRoute || isSimulationActive);
+        if (isAdded()) {
+            simulationButton.setText(isSimulationActive
+                    ? getString(R.string.simulation_stop)
+                    : getString(R.string.simulation_start));
+        }
+    }
+
+    /**
+     * Kullanıcı haritayı manuel hareket ettirdiğinde cihaz odaklı takibi devre dışı bırakıp
+     * ortala butonunu görünür hale getirir.
+     */
+    private void disableFollowMode() {
+        isFollowModeActive = false;
+        if (mapViewObject != null && mapViewObject.isDeviceOrientationFocused()) {
+            mapViewObject.setDeviceOrientationFocused(false);
+        }
+        updateFollowButtonVisibility();
+    }
+
+    /**
+     * Ortala butonuna basıldığında tekrar cihaz odaklı takibi açar ve gerekirse son geçerli
+     * konuma zoom yaparak kamerayı kullanıcıya çevirir.
+     */
+    private void restoreFollowMode() {
+        isFollowModeActive = true;
+        if (mapViewObject != null && !mapViewObject.isDeviceOrientationFocused()) {
+            mapViewObject.setDeviceOrientationFocused(true);
+        }
+        if (usage != null && usage.focusOnCurrentPosition()) {
+            // handled inside usage
+        } else if (lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
+            mapViewObject.setFocusPos(lastLocation.getCoordinate(), 1.0f);
+            mapViewObject.setZoom(17, 1.0f);
+        }
+        updateFollowButtonVisibility();
+    }
+
+    /**
+     * Takip modu açık mı kapalı mı olduğuna göre Ortala butonunun görünürlüğünü günceller.
+     */
+    private void updateFollowButtonVisibility() {
+        if (followButton == null) {
+            return;
+        }
+        followButton.setVisibility(isFollowModeActive ? View.GONE : View.VISIBLE);
+    }
+
+    /**
+     * Geçersiz (NaN veya 0,0) koordinatları filtreleyerek kameranın deniz ortasına gitmesini önler.
+     */
+    private boolean isCoordinateValid(@Nullable MapPos mapPos) {
+        if (mapPos == null) {
+            return false;
+        }
+        double x = mapPos.getX();
+        double y = mapPos.getY();
+        if (Double.isNaN(x) || Double.isNaN(y)) {
+            return false;
+        }
+        return !(Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6);
+    }
 }
