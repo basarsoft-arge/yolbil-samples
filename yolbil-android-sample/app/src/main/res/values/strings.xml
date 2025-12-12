@@ -6,4 +6,5 @@
     <string name="simulation_not_ready">Navigasyon hazır değil</string>
     <string name="simulation_no_route">Simülasyon için rota oluşturulamadı</string>
     <string name="follow_button_text">Ortala</string>
+    <string name="voice_guidance_switch_label">Sesli yönlendirme</string>
 </resources>

@@ -4,13 +4,15 @@ import org.json.JSONException;
 import android.animation.Animator;
 import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.MotionEvent;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
@@ -70,6 +72,7 @@ public class SecondFragment extends Fragment {
     private LocationSource locationSource;
     private MapView mapViewObject;
     Switch offlineSwitch;
+    Switch voiceSwitch;
     MapPosVector navigationVector;
     LocalVectorDataSource vectorDataSourceMarker;
     LineStyleBuilder lineStyleBuilder;
@@ -86,6 +89,10 @@ public class SecondFragment extends Fragment {
     private boolean hasActiveRoute = false;
     private boolean isSimulationActive = false;
     private boolean isFollowModeActive = true;
+    private SharedPreferences sharedPreferences;
+    private boolean voiceGuidanceEnabled = true;
+    private static final String PREFS_NAME = "yolbil_sample_settings";
+    private static final String PREF_KEY_VOICE_GUIDANCE = "voice_guidance";
 
     String accId = BaseSettings.INSTANCE.getAccountId();
     String appCode = BaseSettings.INSTANCE.getAppCode();
@@ -118,6 +125,13 @@ public class SecondFragment extends Fragment {
 
         View view = inflater.inflate(R.layout.second_fragment, container, false);
         offlineSwitch = view.findViewById(R.id.offlineSwitch);
+        int voiceSwitchResId = getResources().getIdentifier("voiceSwitch", "id", requireContext().getPackageName());
+        if (voiceSwitchResId != 0) {
+            voiceSwitch = view.findViewById(voiceSwitchResId);
+        } else {
+            voiceSwitch = null;
+            Log.w(TAG, "voiceSwitch id not found in resources.");
+        }
         focusPos = view.findViewById(R.id.button2);
         navigationInfoText = view.findViewById(R.id.navigationInfoText);
         startNavigation = view.findViewById(R.id.button3);
@@ -147,6 +161,24 @@ public class SecondFragment extends Fragment {
             }
         });
         updateFollowButtonVisibility();
+
+        sharedPreferences = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        voiceGuidanceEnabled = sharedPreferences.getBoolean(PREF_KEY_VOICE_GUIDANCE, true);
+        if (voiceSwitch != null) {
+            voiceSwitch.setChecked(voiceGuidanceEnabled);
+            voiceSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                    voiceGuidanceEnabled = isChecked;
+                    sharedPreferences.edit().putBoolean(PREF_KEY_VOICE_GUIDANCE, isChecked).apply();
+                    if (usage != null) {
+                        usage.setVoiceGuidanceEnabled(isChecked);
+                    }
+                }
+            });
+        } else {
+            Log.w(TAG, "voiceSwitch view not found. Voice guidance toggle disabled in UI.");
+        }
 
         startNavigation.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -571,6 +603,7 @@ public class SecondFragment extends Fragment {
             mapViewObject.getLayers().add(vectorLayerMarker);
             if (usage == null) {
                 usage = new YolbilNavigationUsage(navigationInfoText);
+                usage.setVoiceGuidanceEnabled(voiceGuidanceEnabled);
             }
 
             toggleRouteLoading(true, getString(R.string.route_loading_text));

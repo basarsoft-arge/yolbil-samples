@@ -1,7 +1,6 @@
 package com.akylas.yolbiltest.ui.main;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.location.LocationManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,9 +24,8 @@ import com.basarsoft.yolbil.location.LocationSource;
 import com.basarsoft.yolbil.location.LocationSourceSnapProxy;
 import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator;
 import com.basarsoft.yolbil.navigation.CommandListener;
-import com.basarsoft.yolbil.navigation.CommandListenerModuleJNI;
-import com.basarsoft.yolbil.navigation.Narrator;
 import com.basarsoft.yolbil.navigation.NavigationCommand;
+import com.basarsoft.yolbil.navigation.Navigation;
 import com.basarsoft.yolbil.navigation.RouteType;
 import com.basarsoft.yolbil.navigation.VoiceNarrator;
 import com.basarsoft.yolbil.navigation.YolbilNavigationBundle;
@@ -74,6 +72,8 @@ public class YolbilNavigationUsage {
     private SimulationListener simulationListener;
 
     private TextView navigationInfoText;
+    private boolean voiceGuidanceEnabled = true;
+    private VoiceNarrator voiceNarrator;
 
     // UI tarafına kalan mesafe/süre yazabilmek için TextView referansı alır.
     public YolbilNavigationUsage(TextView navigationInfoText) {
@@ -103,6 +103,7 @@ public class YolbilNavigationUsage {
         this.addLocationSourceToMap(mapView);
 
         bundle = this.getNavigationBundle(isOffline);
+        applyVoiceGuidanceSetting();
         this.addNavigationToMapLayers(mapView);
 
 
@@ -178,6 +179,14 @@ public class YolbilNavigationUsage {
 
     public interface SimulationListener {
         void onSimulationFinished();
+    }
+
+    public void setVoiceGuidanceEnabled(boolean enabled) {
+        if (voiceGuidanceEnabled == enabled) {
+            return;
+        }
+        voiceGuidanceEnabled = enabled;
+        applyVoiceGuidanceSetting();
     }
 
     public synchronized boolean startSimulation(@Nullable SimulationListener listener) {
@@ -343,8 +352,12 @@ public class YolbilNavigationUsage {
         }
         );
 
-        // Below implementation expects CommandVoices.zip to be in the Android assets folder.
-        navigationBundleBuilder.setNarrator(new AssetsVoiceNarrator(new ZippedAssetPackage(AssetUtils.loadAsset("CommandVoices.zip"))));
+        if (voiceGuidanceEnabled) {
+            VoiceNarrator narrator = ensureVoiceNarrator();
+            if (narrator != null) {
+                navigationBundleBuilder.setNarrator(narrator);
+            }
+        }
         return navigationBundleBuilder.build();
     }
 
@@ -440,6 +453,39 @@ public class YolbilNavigationUsage {
             return false;
         }
         return !(Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6);
+    }
+
+    // Sesli yönlendirmeyi çalışırken açıp kapatmak için navigator'a narrator atama/temizleme.
+    private void applyVoiceGuidanceSetting() {
+        if (bundle == null) {
+            return;
+        }
+        try {
+            Navigation navigation = bundle.getNavigation();
+            if (navigation == null) {
+                return;
+            }
+            if (voiceGuidanceEnabled) {
+                VoiceNarrator narrator = ensureVoiceNarrator();
+                navigation.setNarrator(narrator);
+            } else {
+                navigation.setNarrator(null);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Voice guidance toggle not applied at runtime: " + e.getMessage());
+        }
+    }
+
+    // CommandVoices.zip paketini okuyup narrator'ı ilk ihtiyaçta yaratır, sonraki isteklerde aynı nesneyi döndürür.
+    private VoiceNarrator ensureVoiceNarrator() {
+        if (voiceNarrator == null) {
+            try {
+                voiceNarrator = new AssetsVoiceNarrator(new ZippedAssetPackage(AssetUtils.loadAsset("CommandVoices.zip")));
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to load narrator asset", e);
+            }
+        }
+        return voiceNarrator;
     }
 
 }
