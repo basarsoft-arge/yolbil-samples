@@ -65,6 +65,7 @@ public class YolbilNavigationUsage {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Handler simulationHandler = new Handler(Looper.getMainLooper());
     private static final long SIMULATION_STEP_MS = 1000L;
+    private static final double SIMULATION_SPEED_KMH = 120.0;
     private Runnable simulationRunnable;
     private final List<MapPos> simulationPoints = new ArrayList<>();
     private int simulationIndex = 0;
@@ -122,7 +123,10 @@ public class YolbilNavigationUsage {
 
         if (navigationResult != null) {
             snapLocationSourceProxy.setRoutingPoints(navigationResult.getPoints());
-            mapView.fitRouteOnMap(navigationResult.getPoints());
+            if (navigationResult.getPoints().size() >0){
+                mapView.fitRouteOnMap(navigationResult.getPoints());
+
+            }
 
             for (int i = 0; i < navigationResult.getInstructions().size(); i++) {
                 RoutingInstruction rI = navigationResult.getInstructions().get(i);
@@ -202,9 +206,13 @@ public class YolbilNavigationUsage {
 
         simulationPoints.clear();
         MapPosVector points = navigationResult.getPoints();
+        List<MapPos> rawPoints = new ArrayList<>();
         for (int i = 0; i < points.size(); i++) {
-            simulationPoints.add(points.get(i));
+            rawPoints.add(points.get(i));
         }
+        double speedMps = (SIMULATION_SPEED_KMH * 1000.0) / 3600.0;
+        double spacingMeters = speedMps * (SIMULATION_STEP_MS / 1000.0);
+        simulationPoints.addAll(resamplePolylineWgs84(rawPoints, spacingMeters));
 
         if (simulationPoints.size() < 2) {
             Log.w(TAG, "startSimulation: Not enough points to simulate");
@@ -229,6 +237,10 @@ public class YolbilNavigationUsage {
                 }
 
                 MapPos mapPos = simulationPoints.get(simulationIndex++);
+                double direction = Double.NaN;
+                if (lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
+                    direction = calculateBearing(lastLocation.getCoordinate(), mapPos);
+                }
                 if (locationSource != null) {
                     locationSource.sendMockLocation(mapPos);
                 }
@@ -236,12 +248,33 @@ public class YolbilNavigationUsage {
                     lastLocation = new Location();
                 }
                 lastLocation.setCoordinate(mapPos);
+                if (!Double.isNaN(direction)) {
+                    lastLocation.setDirection(direction);
+                }
+                if (snapLocationSourceProxy != null) {
+                    snapLocationSourceProxy.updateLocation(lastLocation);
+                }
+                
                 followBlueDot(lastLocation, false);
                 simulationHandler.postDelayed(this, SIMULATION_STEP_MS);
             }
         };
         simulationHandler.post(simulationRunnable);
         return true;
+    }
+
+    /**
+     * İki nokta arasındaki coğrafi yöne (0-360 derece) ihtiyaç duyan simülasyon için bearing hesaplar.
+     */
+    private double calculateBearing(MapPos from, MapPos to) {
+        double lat1 = Math.toRadians(from.getY());
+        double lat2 = Math.toRadians(to.getY());
+        double dLon = Math.toRadians(to.getX() - from.getX());
+        double y = Math.sin(dLon) * Math.cos(lat2);
+        double x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+        double bearing = Math.toDegrees(Math.atan2(y, x));
+        bearing = (bearing + 360.0) % 360.0;
+        return bearing;
     }
 
     public synchronized void stopSimulation() {
@@ -379,6 +412,7 @@ public class YolbilNavigationUsage {
             locationSource.addListener(new LocationListener() {
                 @Override
                 public void onLocationChange(Location location) {
+
                     lastLocation = location;
                     //Bluedot takibi sağlanır
                     followBlueDot(location, isFirstLocation);
@@ -438,6 +472,87 @@ public class YolbilNavigationUsage {
             mapView.setTilt(45.0f, 0.6f);
         }
         return true;
+    }
+
+    // Haversine ile iki nokta arasındaki mesafeyi (metre) hesaplar.
+    private double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371000.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    // Great-circle interpolasyonu ile iki nokta arasında f oranında ara nokta bulur.
+    private MapPos interpolateGreatCircle(MapPos from, MapPos to, double fraction) {
+        double phi1 = Math.toRadians(from.getY());
+        double lambda1 = Math.toRadians(from.getX());
+        double phi2 = Math.toRadians(to.getY());
+        double lambda2 = Math.toRadians(to.getX());
+
+        double sinPhi1 = Math.sin(phi1);
+        double cosPhi1 = Math.cos(phi1);
+        double sinPhi2 = Math.sin(phi2);
+        double cosPhi2 = Math.cos(phi2);
+
+        double delta = 2 * Math.asin(Math.sqrt(
+                Math.sin((phi2 - phi1) / 2) * Math.sin((phi2 - phi1) / 2)
+                        + Math.cos(phi1) * Math.cos(phi2)
+                        * Math.sin((lambda2 - lambda1) / 2) * Math.sin((lambda2 - lambda1) / 2)
+        ));
+        if (delta == 0.0) {
+            return new MapPos(from.getX(), from.getY());
+        }
+
+        double A = Math.sin((1 - fraction) * delta) / Math.sin(delta);
+        double B = Math.sin(fraction * delta) / Math.sin(delta);
+
+        double x = A * cosPhi1 * Math.cos(lambda1) + B * cosPhi2 * Math.cos(lambda2);
+        double y = A * cosPhi1 * Math.sin(lambda1) + B * cosPhi2 * Math.sin(lambda2);
+        double z = A * sinPhi1 + B * sinPhi2;
+
+        double phi = Math.atan2(z, Math.sqrt(x * x + y * y));
+        double lambda = Math.atan2(y, x);
+        return new MapPos(Math.toDegrees(lambda), Math.toDegrees(phi));
+    }
+
+    // Polyline'ı verilen metre aralığında yeniden örnekler.
+    private List<MapPos> resamplePolylineWgs84(List<MapPos> points, double spacingMeters) {
+        if (points.size() < 2) {
+            return new ArrayList<>(points);
+        }
+        List<MapPos> out = new ArrayList<>();
+        MapPos prev = points.get(0);
+        out.add(prev);
+        double acc = 0.0;
+        double nextTarget = spacingMeters;
+
+        for (int i = 0; i < points.size() - 1; i++) {
+            MapPos a = prev;
+            MapPos b = points.get(i + 1);
+            double segLen = haversineMeters(a.getY(), a.getX(), b.getY(), b.getX());
+            MapPos start = a;
+            while (acc + segLen >= nextTarget) {
+                double remain = nextTarget - acc;
+                double fraction = Math.min(Math.max(remain / segLen, 0.0), 1.0);
+                MapPos np = interpolateGreatCircle(start, b, fraction);
+                out.add(np);
+                start = np;
+                segLen = haversineMeters(start.getY(), start.getX(), b.getY(), b.getX());
+                acc = nextTarget;
+                nextTarget += spacingMeters;
+            }
+            acc += segLen;
+            prev = b;
+        }
+        MapPos last = points.get(points.size() - 1);
+        if (out.get(out.size() - 1).getX() != last.getX() || out.get(out.size() - 1).getY() != last.getY()) {
+            out.add(last);
+        }
+        return out;
     }
 
     /**
