@@ -184,7 +184,7 @@ public class SecondFragment extends Fragment {
                     }
                     if (coordinate != null && mapViewObject != null) {
                         mapViewObject.setFocusPos(coordinate, 0.5f);
-                        mapViewObject.setZoom(20, 0.3f);
+                        mapViewObject.setZoom(18, 0.3f);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
