@@ -3,4 +3,10 @@
     <color name="colorPrimary">#6200EE</color>
     <color name="colorPrimaryDark">#3700B3</color>
     <color name="colorAccent">#03DAC5</color>
+    <color name="navigation_card_background">#FF1E1F2C</color>
+    <color name="navigation_next_command_background">#FF2F3A5E</color>
+    <color name="speed_safe_text">#1B5E20</color>
+    <color name="speed_warning_text">#B71C1C</color>
+    <color name="speed_safe_background">#E6F4EA</color>
+    <color name="speed_warning_background">#FDECEA</color>
 </resources>

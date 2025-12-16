@@ -46,6 +46,14 @@
             android:textColor="@android:color/black"
             tools:checked="true" />
 
+        <Switch
+            android:id="@+id/mockGpsSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:text="Mock GPS"
+            android:textColor="@android:color/black" />
+
         <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="30dp"
@@ -172,25 +180,189 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"></Button>
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/navigationInfoCard"
-        android:layout_width="wrap_content"
+     <LinearLayout
+        android:id="@+id/navigationSpeedRow"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="#88000000"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_speed_info_safe"
+        android:padding="12dp"
+        app:layout_constraintBottom_toTopOf="@id/navigationInfoCard"
+        app:layout_constraintEnd_toEndOf="@id/navigationInfoCard"
+        app:layout_constraintStart_toStartOf="@id/navigationInfoCard">
+
+        <ImageView
+            android:id="@+id/navigationSpeedIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_car"
+            android:tint="@color/speed_safe_text"
+            android:contentDescription="@string/navigation_speed_icon_description" />
 
         <TextView
-            android:id="@+id/navigationInfoText"
+            android:id="@+id/navigationCurrentSpeedText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:text="Navigasyon bilgisi"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:layout_marginStart="12dp"
+            android:text="@string/navigation_current_speed_placeholder"
+            android:textColor="@color/speed_safe_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/navigationSpeedLimitText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="@string/navigation_speed_limit_placeholder"
+            android:textColor="@color/speed_safe_text"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+    <!-- Manifest ve yönlendirme bilgilerini gösteren ana NavigationInfoCard -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/navigationInfoCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:cardBackgroundColor="@color/navigation_card_background"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+            <LinearLayout
+                android:id="@+id/navigationSummaryRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/navigationTotalDistanceText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/navigation_total_distance_placeholder"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/navigationTotalTimeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/navigation_total_time_placeholder"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/navigationIconContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingEnd="12dp">
+
+                    <ImageView
+                        android:id="@+id/navigationDirectionIcon"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:contentDescription="@string/navigation_direction_icon_description"
+                        android:scaleType="fitCenter"
+                        android:tint="@android:color/white"
+                        android:src="@drawable/go_straight" />
+
+                    <TextView
+                        android:id="@+id/navigationDistanceText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="-"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/navigationManifestText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/navigation_card_default_manifest"
+                        android:textColor="@android:color/white"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/navigationDirectionText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/keep_going_straight"
+                        android:textColor="@android:color/white"
+                        android:textSize="18sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/nextCommandContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_next_command"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/nextCommandLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/next_direction_label"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/nextCommandIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@string/navigation_next_direction_icon_description"
+                    android:src="@drawable/ic_right"
+                    android:tint="@android:color/white" />
+            </LinearLayout>
+        </LinearLayout>
     </androidx.cardview.widget.CardView>
 
     <Button
@@ -199,11 +371,11 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="96dp"
+        android:layout_marginBottom="8dp"
         android:text="@string/follow_button_text"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/navigationInfoCard"
-        app:layout_constraintEnd_toEndOf="@id/navigationInfoCard" />
+        app:layout_constraintBottom_toTopOf="@id/navigationSpeedRow"
+        app:layout_constraintEnd_toEndOf="@id/navigationSpeedRow" />
 
     <FrameLayout
         android:id="@+id/routeLoadingOverlay"

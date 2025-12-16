@@ -35,6 +35,9 @@ import com.basarsoft.yolbil.components.Options;
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
 import com.basarsoft.yolbil.core.StringVector;
+import com.akylas.yolbiltest.application.AppSession;
+import com.akylas.yolbiltest.utils.LocationUtils;
+import com.basarsoft.yolbil.datasources.BlueDotDataSource;
 import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
 import com.basarsoft.yolbil.datasources.YBOfflineStoredDataSource;
@@ -73,6 +76,7 @@ public class SecondFragment extends Fragment {
     private MapView mapViewObject;
     Switch offlineSwitch;
     Switch voiceSwitch;
+    Switch mockGpsSwitch;
     MapPosVector navigationVector;
     LocalVectorDataSource vectorDataSourceMarker;
     LineStyleBuilder lineStyleBuilder;
@@ -80,12 +84,15 @@ public class SecondFragment extends Fragment {
     VectorLayer vectorLayerMarker;
     YolbilNavigationUsage usage;
     GPSLocationSource gpsLocationSource;
+    BlueDotDataSource sharedBlueDotDataSource;
     Location lastLocation = null;
+    LocationUtils locationUtils;
     Button focusPos,startNavigation, simulationButton, followButton;
-    private TextView navigationInfoText;
+    private NavigationInfoCardView navigationInfoCardView;
     private View routeLoadingOverlay;
     private TextView routeLoadingText;
     boolean isLocationFound = false;
+    boolean mockGpsEnabled = false;
     private boolean hasActiveRoute = false;
     private boolean isSimulationActive = false;
     private boolean isFollowModeActive = true;
@@ -132,8 +139,32 @@ public class SecondFragment extends Fragment {
             voiceSwitch = null;
             Log.w(TAG, "voiceSwitch id not found in resources.");
         }
+        mockGpsSwitch = view.findViewById(R.id.mockGpsSwitch);
+        if (mockGpsSwitch != null) {
+            mockGpsSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                    mockGpsEnabled = isChecked;
+                    if (usage != null) {
+                        usage.setMockGpsEnabled(isChecked);
+                    }
+                    if (isChecked) {
+                        if (gpsLocationSource != null) {
+                            gpsLocationSource.stopLocationUpdates();
+                        }
+                        stopPhoneLocationUpdates();
+                        Toast.makeText(requireContext(), "Mock GPS etkinleştirildi", Toast.LENGTH_SHORT).show();
+                    } else {
+                        resumeRealLocationUpdatesIfNeeded();
+                        Toast.makeText(requireContext(), "Gerçek GPS'e geri dönülüyor", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        } else {
+            Log.w(TAG, "mockGpsSwitch view not found. Mock GPS toggle disabled.");
+        }
         focusPos = view.findViewById(R.id.button2);
-        navigationInfoText = view.findViewById(R.id.navigationInfoText);
+        navigationInfoCardView = new NavigationInfoCardView(view);
         startNavigation = view.findViewById(R.id.button3);
         simulationButton = view.findViewById(R.id.buttonSimulation);
         routeLoadingOverlay = view.findViewById(R.id.routeLoadingOverlay);
@@ -141,15 +172,21 @@ public class SecondFragment extends Fragment {
         followButton = view.findViewById(R.id.followButton);
         focusPos.setOnClickListener(new View.OnClickListener() {
             @Override
+            //focus oriantation tıklandığı zaman gerçek konuma gidiyor simülasyon esnasında gerçek konuma dönüyor.
             public void onClick(View view) {
                 try {
-                    boolean handledByNavigation = usage != null && usage.focusOnCurrentPosition();
-                    if (!handledByNavigation && lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
-                        mapViewObject.setFocusPos(lastLocation.getCoordinate(), 1.0f);
-                        mapViewObject.setZoom(17, 1.0f);
+                    if (mapViewObject != null) {
+                        mapViewObject.setDeviceOrientationFocused(true);
                     }
-                    mapViewObject.setDeviceOrientationFocused(true);
-                }catch (Exception e){
+                    MapPos coordinate = AppSession.getLastKnowLocation();
+                    if (coordinate == null && lastLocation != null) {
+                        coordinate = lastLocation.getCoordinate();
+                    }
+                    if (coordinate != null && mapViewObject != null) {
+                        mapViewObject.setFocusPos(coordinate, 0.5f);
+                        mapViewObject.setZoom(20, 0.3f);
+                    }
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -544,6 +581,7 @@ public class SecondFragment extends Fragment {
     @Override
     public void onDestroyView() {
         Log.d(TAG, "onDestroyView");
+        stopPhoneLocationUpdates();
         super.onDestroyView();
     }
 
@@ -602,8 +640,9 @@ public class SecondFragment extends Fragment {
             vectorLayerMarker = new VectorLayer(vectorDataSourceMarker);
             mapViewObject.getLayers().add(vectorLayerMarker);
             if (usage == null) {
-                usage = new YolbilNavigationUsage(navigationInfoText);
+                usage = new YolbilNavigationUsage(navigationInfoCardView, requireContext().getApplicationContext());
                 usage.setVoiceGuidanceEnabled(voiceGuidanceEnabled);
+                usage.setMockGpsEnabled(mockGpsEnabled);
             }
 
             toggleRouteLoading(true, getString(R.string.route_loading_text));
@@ -616,7 +655,12 @@ public class SecondFragment extends Fragment {
                 public void run() {
                     try {
                         // Yolbil servisinden rota isteğini gönderip NavigationResult bekler.
-                        NavigationResult navigationResult = usage.fullExample(mapViewObject, startPos, destinationPos, offline, gpsLocationSource);
+                        ensureBlueDotDataSource();
+                        if (sharedBlueDotDataSource == null) {
+                            Log.w(TAG, "initOnline: shared blue dot data source unavailable");
+                            return;
+                        }
+                        NavigationResult navigationResult = usage.fullExample(mapViewObject, startPos, destinationPos, offline, gpsLocationSource, sharedBlueDotDataSource);
 
                         if (navigationResult != null) {
                             hasActiveRoute = true;
@@ -664,6 +708,16 @@ public class SecondFragment extends Fragment {
         if (gpsLocationSource == null) {
             gpsLocationSource = new GPSLocationSource(getActivity());
         }
+        ensureLocationUtils();
+        if (mockGpsEnabled) {
+            Log.d(TAG, "startLocationUpdates: Mock GPS aktif, gerçek konum güncellemeleri atlandı");
+            stopPhoneLocationUpdates();
+            return;
+        }
+        if (locationUtils != null) {
+            locationUtils.startLocationUpdates();
+        }
+        ensureBlueDotDataSource();
         gpsLocationSource.startLocationUpdates();
         gpsLocationSource.addListener(new LocationListener() {
             @Override
@@ -675,6 +729,46 @@ public class SecondFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void resumeRealLocationUpdatesIfNeeded() {
+        if (mockGpsEnabled) {
+            return;
+        }
+        ensureLocationUtils();
+        if (locationUtils != null) {
+            locationUtils.startLocationUpdates();
+        }
+        if (gpsLocationSource != null) {
+            try {
+                gpsLocationSource.startLocationUpdates();
+            } catch (SecurityException se) {
+                Log.w(TAG, "resumeRealLocationUpdatesIfNeeded: konum izni yok", se);
+            }
+        }
+    }
+
+    private void ensureLocationUtils() {
+        if (locationUtils == null && isAdded()) {
+            locationUtils = new LocationUtils(requireContext());
+        }
+    }
+
+    private void stopPhoneLocationUpdates() {
+        if (locationUtils != null) {
+            locationUtils.stopLocationUpdates();
+        }
+    }
+
+    private void ensureBlueDotDataSource() {
+        if (sharedBlueDotDataSource != null) {
+            return;
+        }
+        if (gpsLocationSource == null) {
+            return;
+        }
+        sharedBlueDotDataSource = new BlueDotDataSource(new EPSG4326(), gpsLocationSource);
+        sharedBlueDotDataSource.init();
     }
 
     // İzin isteği geri dönüşünü ele alır ve gerekirse kullanıcıyı bilgilendirir.
@@ -709,6 +803,7 @@ public class SecondFragment extends Fragment {
         if (gpsLocationSource != null) {
             gpsLocationSource.stopLocationUpdates();
         }
+        stopPhoneLocationUpdates();
 
         boolean started = usage.startSimulation(simulationStateListener);
         if (started) {
@@ -716,16 +811,14 @@ public class SecondFragment extends Fragment {
             refreshSimulationButton();
         } else {
             if (gpsLocationSource != null) {
-                gpsLocationSource.startLocationUpdates();
+                resumeRealLocationUpdatesIfNeeded();
             }
             Toast.makeText(requireContext(), R.string.simulation_no_route, Toast.LENGTH_SHORT).show();
         }
     }
 
     private void handleSimulationFinished() {
-        if (gpsLocationSource != null) {
-            gpsLocationSource.startLocationUpdates();
-        }
+        resumeRealLocationUpdatesIfNeeded();
         isSimulationActive = false;
         refreshSimulationButton();
     }
@@ -765,9 +858,15 @@ public class SecondFragment extends Fragment {
         }
         if (usage != null && usage.focusOnCurrentPosition()) {
             // handled inside usage
-        } else if (lastLocation != null && isCoordinateValid(lastLocation.getCoordinate())) {
-            mapViewObject.setFocusPos(lastLocation.getCoordinate(), 1.0f);
-            mapViewObject.setZoom(17, 1.0f);
+        } else {
+            MapPos coordinate = AppSession.getLastKnowLocation();
+            if (coordinate == null && lastLocation != null) {
+                coordinate = lastLocation.getCoordinate();
+            }
+            if (coordinate != null) {
+                mapViewObject.setFocusPos(coordinate, 1.0f);
+                mapViewObject.setZoom(17, 1.0f);
+            }
         }
         updateFollowButtonVisibility();
     }
@@ -782,18 +881,6 @@ public class SecondFragment extends Fragment {
         followButton.setVisibility(isFollowModeActive ? View.GONE : View.VISIBLE);
     }
 
-    /**
-     * Geçersiz (NaN veya 0,0) koordinatları filtreleyerek kameranın deniz ortasına gitmesini önler.
-     */
-    private boolean isCoordinateValid(@Nullable MapPos mapPos) {
-        if (mapPos == null) {
-            return false;
-        }
-        double x = mapPos.getX();
-        double y = mapPos.getY();
-        if (Double.isNaN(x) || Double.isNaN(y)) {
-            return false;
-        }
-        return !(Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6);
-    }
+
+
 }
