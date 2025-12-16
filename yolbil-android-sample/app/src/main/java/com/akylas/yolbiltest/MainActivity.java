@@ -3,11 +3,13 @@ package com.akylas.yolbiltest;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.akylas.yolbiltest.ui.main.SecondFragment;
@@ -63,5 +65,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         Log.d(TAG, "onDestroy");
         super.onDestroy();
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        Log.d(TAG, "onConfigurationChanged: orientation=" + newConfig.orientation);
+        super.onConfigurationChanged(newConfig);
     }
 }
