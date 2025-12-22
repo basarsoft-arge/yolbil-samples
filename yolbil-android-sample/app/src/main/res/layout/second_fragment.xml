@@ -141,6 +141,12 @@
             android:text="focus orientation" />
 
         <Button
+            android:id="@+id/blueDotButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/blue_dot_focus_button_text" />
+
+        <Button
             android:id="@+id/button3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -154,6 +160,29 @@
             android:layout_height="wrap_content"
             android:enabled="false"
             android:text="@string/simulation_start" />
+
+        <LinearLayout
+            android:id="@+id/baseLayerButtonContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/buttonGoogleBase"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="@string/basemap_google" />
+
+            <Button
+                android:id="@+id/buttonBasarsoftBase"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/basemap_basarsoft" />
+        </LinearLayout>
     </LinearLayout>
 
     <TextView

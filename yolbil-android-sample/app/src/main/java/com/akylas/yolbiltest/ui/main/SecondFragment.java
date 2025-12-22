@@ -34,15 +34,11 @@ import com.basarsoft.yolbil.components.Options;
 
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
-import com.basarsoft.yolbil.core.StringVector;
 import com.akylas.yolbiltest.application.AppSession;
 import com.akylas.yolbiltest.utils.LocationUtils;
 import com.basarsoft.yolbil.datasources.BlueDotDataSource;
-import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
-import com.basarsoft.yolbil.datasources.YBOfflineStoredDataSource;
 import com.basarsoft.yolbil.graphics.Color;
-import com.basarsoft.yolbil.layers.RasterTileLayer;
 import com.basarsoft.yolbil.layers.VectorLayer;
 import com.basarsoft.yolbil.location.GPSLocationSource;
 import com.basarsoft.yolbil.location.Location;
@@ -87,10 +83,11 @@ public class SecondFragment extends Fragment {
     BlueDotDataSource sharedBlueDotDataSource;
     Location lastLocation = null;
     LocationUtils locationUtils;
-    Button focusPos,startNavigation, simulationButton, followButton;
+    Button focusPos,startNavigation, simulationButton, followButton, blueDotButton;
     private NavigationInfoCardView navigationInfoCardView;
     private View routeLoadingOverlay;
     private TextView routeLoadingText;
+    private BaseMapSwitchController baseMapSwitchController;
     boolean isLocationFound = false;
     boolean mockGpsEnabled = false;
     private boolean hasActiveRoute = false;
@@ -98,8 +95,11 @@ public class SecondFragment extends Fragment {
     private boolean isFollowModeActive = true;
     private SharedPreferences sharedPreferences;
     private boolean voiceGuidanceEnabled = true;
+    private boolean  useLowTiltOnNextBlueDotFocus = false;
     private static final String PREFS_NAME = "yolbil_sample_settings";
     private static final String PREF_KEY_VOICE_GUIDANCE = "voice_guidance";
+    private static final float DEFAULT_TILT = 45.0f;
+    private static final float LOW_TILT = 15.0f;
 
     String accId = BaseSettings.INSTANCE.getAccountId();
     String appCode = BaseSettings.INSTANCE.getAppCode();
@@ -164,6 +164,7 @@ public class SecondFragment extends Fragment {
             Log.w(TAG, "mockGpsSwitch view not found. Mock GPS toggle disabled.");
         }
         focusPos = view.findViewById(R.id.button2);
+        blueDotButton = view.findViewById(R.id.blueDotButton);
         navigationInfoCardView = new NavigationInfoCardView(view);
         startNavigation = view.findViewById(R.id.button3);
         simulationButton = view.findViewById(R.id.buttonSimulation);
@@ -189,6 +190,12 @@ public class SecondFragment extends Fragment {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            }
+        });
+        blueDotButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                handleBlueDotFocusRequest();
             }
         });
         followButton.setOnClickListener(new View.OnClickListener() {
@@ -257,6 +264,8 @@ public class SecondFragment extends Fragment {
                 }
             }
         });
+        Button googleBaseButton = view.findViewById(R.id.buttonGoogleBase);
+        Button basarsoftBaseButton = view.findViewById(R.id.buttonBasarsoftBase);
         Button modeBtn = view.findViewById(R.id.modeButton);
 
         mapViewObject = view.findViewById(R.id.mapView);
@@ -276,47 +285,14 @@ public class SecondFragment extends Fragment {
             }
         });
 
-        String tileUrl = "https://bms.basarsoft.com.tr/service/api/v1/map/Default"
-                + "?appcode=" + appCode
-                + "&accid=" + accId
-                + "&x={x}&y={y}&z={zoom}";
-
-        silverBlocks = new MapPos(32.836262, 39.960160);
-        final HTTPTileDataSource httpTileDataSource = new HTTPTileDataSource(0, 18, tileUrl);
-        final StringVector subdomains = new StringVector();
-        subdomains.add("1");
-        subdomains.add("2");
-        subdomains.add("3");
-        httpTileDataSource.setSubdomains(subdomains);
-
-        //FOR OFFLINE STORAGE VIEWED TILES
-        YBOfflineStoredDataSource ybOfflineStoredDataSource = new YBOfflineStoredDataSource(httpTileDataSource, "/storage/emulated/0/.cachetile.db");
-
-        //ONLY OFFLINE USAGE
-        //ybOfflineStoredDataSource.setCacheOnlyMode(true);
-
-        final RasterTileLayer rasterlayer = new RasterTileLayer(ybOfflineStoredDataSource);
-
-        //FOR DOWNLOAD SELECTED BOUNDARY
-        /*
-        MapBounds bounds = new MapBounds(new MapPos(32.836262, 39.960160), new MapPos(32.836262, 39.960160));
-        ybOfflineStoredDataSource.startDownloadArea(bounds, 0, 10, new TileDownloadListener() {
-            @Override
-            public void onDownloadProgress(float progress) {
-                Log.e("progress", String.valueOf(progress));
-            }
-
-            @Override
-            public void onDownloadCompleted() {
-                Log.e("onDownloadCompleted", "onDownloadCompleted");
-
-            }
-        });*/
-
         Options options = mapViewObject.getOptions();
 
         options.setBaseProjection(new EPSG4326());
-        mapViewObject.getLayers().add(rasterlayer);
+        silverBlocks = new MapPos(32.836262, 39.960160);
+
+        baseMapSwitchController = new BaseMapSwitchController(mapViewObject, appCode, accId);
+        baseMapSwitchController.bindButtons(googleBaseButton, basarsoftBaseButton);
+        baseMapSwitchController.initializeDefaultLayer();
 
         LocationBuilder locationBuilder = new LocationBuilder();
         locationBuilder.setCoordinate(silverBlocks);
@@ -341,18 +317,6 @@ public class SecondFragment extends Fragment {
         //DownloadManager downloadmanager = (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
         //YolbilUtil.downloadYolbilData(downloadmanager);
         //getActivity().registerReceiver(onDownloadComplete,new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-
-        /*rasterlayer.setTileLoadListener( new TileLoadListener(){
-            @Override
-            public void onVisibleTilesLoaded() {
-                Log.e("minx", ""+ mapViewObject.getMapBounds().getMin().getX());
-                Log.e("miny", ""+ mapViewObject.getMapBounds().getMin().getY());
-
-                Log.e("maxx", ""+ mapViewObject.getMapBounds().getMax().getX());
-                Log.e("maxy", ""+ mapViewObject.getMapBounds().getMax().getY());
-                super.onVisibleTilesLoaded();
-            }
-        });*/
         return view;
     }
     @Override
@@ -856,17 +820,21 @@ public class SecondFragment extends Fragment {
         if (mapViewObject != null && !mapViewObject.isDeviceOrientationFocused()) {
             mapViewObject.setDeviceOrientationFocused(true);
         }
-        if (usage != null && usage.focusOnCurrentPosition()) {
-            // handled inside usage
-        } else {
+        boolean handled = usage != null && usage.focusOnCurrentPosition();
+        if (!handled) {
             MapPos coordinate = AppSession.getLastKnowLocation();
             if (coordinate == null && lastLocation != null) {
                 coordinate = lastLocation.getCoordinate();
             }
-            if (coordinate != null) {
+            if (coordinate != null && mapViewObject != null) {
                 mapViewObject.setFocusPos(coordinate, 1.0f);
                 mapViewObject.setZoom(17, 1.0f);
+                handled = true;
             }
+        }
+        if (handled && mapViewObject != null) {
+            useLowTiltOnNextBlueDotFocus = false;
+            mapViewObject.setTilt(DEFAULT_TILT, 0.6f);
         }
         updateFollowButtonVisibility();
     }
@@ -881,6 +849,34 @@ public class SecondFragment extends Fragment {
         followButton.setVisibility(isFollowModeActive ? View.GONE : View.VISIBLE);
     }
 
+    /**
+     * lowTiltMode true olduğunda kamera daha yatay (daha düşük tilt) çalışır.
+     */
+    private boolean focusCameraOnBlueDot(boolean lowTiltMode) {
+        if (mapViewObject == null) {
+            return false;
+        }
+        float targetTilt = lowTiltMode ? LOW_TILT : DEFAULT_TILT;
+        mapViewObject.setTilt(targetTilt, 0.6f);
+        if (usage != null) {
+            Float heading = usage.getBlueDotHeading();
+            if (heading != null) {
+                mapViewObject.setMapRotation(heading, 0.6f);
+            }
+        }
+        return true;
+    }
 
-
+    /**
+     Takip modunu açıp kullanıcıyı bilgilendirir.
+     */
+    private void handleBlueDotFocusRequest() {
+        boolean useLowTilt = useLowTiltOnNextBlueDotFocus;
+        boolean handled = focusCameraOnBlueDot(useLowTilt);
+        if (handled) {
+            useLowTiltOnNextBlueDotFocus = !useLowTiltOnNextBlueDotFocus;
+        } else if (isAdded()) {
+            Toast.makeText(requireContext(), R.string.blue_dot_focus_unavailable, Toast.LENGTH_SHORT).show();
+        }
+    }
 }

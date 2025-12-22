@@ -331,6 +331,17 @@ public class YolbilNavigationUsage {
     public boolean isSimulationRunning() {
         return simulationHelper.isSimulationRunning();
     }
+// kuzeye bakarken bluedotın yönüne dönemsini sağlar
+    @Nullable
+    public Float getBlueDotHeading() {
+        if (snapLocationSourceProxy != null && snapLocationSourceProxy.getLastLocation() != null) {
+            return (float) snapLocationSourceProxy.getLastLocation().getDirection();
+        }
+        if (lastLocation != null) {
+            return (float) lastLocation.getDirection();
+        }
+        return null;
+    }
 
     /**
      * MapView'in cihaz yön takip modunda olup olmadığını kontrol eder

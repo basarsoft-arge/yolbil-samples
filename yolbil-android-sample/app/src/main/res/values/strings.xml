@@ -6,6 +6,8 @@
     <string name="simulation_not_ready">Navigasyon hazır değil</string>
     <string name="simulation_no_route">Simülasyon için rota oluşturulamadı</string>
     <string name="follow_button_text">Ortala</string>
+    <string name="blue_dot_focus_button_text">kuzey</string>
+    <string name="blue_dot_focus_unavailable">BlueDot konumu henüz hazır değil</string>
     <string name="voice_guidance_switch_label">Sesli yönlendirme</string>
     <string name="navigation_card_default_manifest">Rota bilgisi bekleniyor</string>
     <string name="navigation_direction_icon_description">Güncel yön komutu simgesi</string>
@@ -18,6 +20,8 @@
     <string name="navigation_speed_icon_description">Anlık hız ikonu</string>
     <string name="navigation_speed_value">%1$d km/h</string>
     <string name="navigation_speed_limit_value">Sınır %1$d km/h</string>
+    <string name="basemap_google">Google Altlık</string>
+    <string name="basemap_basarsoft">Basarsoft Altlık</string>
 
     <!-- Directions -->
     <string name="turn_right">Sağa dön</string>
