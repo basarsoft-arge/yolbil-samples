@@ -24,8 +24,8 @@ public class LocationUtils {
 
     public LocationUtils(Context context) {
         this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(context.getApplicationContext());
-        this.locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-                .setMinUpdateIntervalMillis(2000)
+        this.locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
+                .setMinUpdateIntervalMillis(1000)
                 .setWaitForAccurateLocation(false)
                 .build();
         this.locationCallback = new LocationCallback() {

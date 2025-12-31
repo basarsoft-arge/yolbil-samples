@@ -229,7 +229,10 @@ public class YolbilNavigationUsage {
         }
 
         try {
-            locationSource.sendMockLocation(start);
+            boolean shouldMock = isSimulationRunning() || lastLocation == null;
+            if (shouldMock && start != null) {
+                locationSource.sendMockLocation(start);
+            }
         } catch (Exception mockEx) {
             lastRouteMessage = mockEx.getMessage();
             Log.e(TAG, "sendMockLocation failed", mockEx);
@@ -590,18 +593,24 @@ public class YolbilNavigationUsage {
      * Yön bilgisi ile birlikte kamera rotasyonunu günceller
      */
     private boolean followBlueDot(@Nullable Location newLocation, boolean initialFocus) {
-        if (mapView == null || !mapView.isDeviceOrientationFocused()) {
+        if (mapView == null) {
             return false;
         }
-        MapPos focusPos = null;
-        if (snapLocationSourceProxy != null) {
-            focusPos = snapLocationSourceProxy.getShiftedCoordinate();
+
+        if (!mapView.isDeviceOrientationFocused()) {
+            return false;
         }
 
-        mapView.setFocusPos(focusPos, 0.6f);
-        if (snapLocationSourceProxy != null && snapLocationSourceProxy.getLastLocation() != null) {
-            float direction = (float) snapLocationSourceProxy.getLastLocation().getDirection();
-            mapView.setMapRotation(direction, 0.6f);
+        if (snapLocationSourceProxy != null) {
+            MapPos focusPos = snapLocationSourceProxy.getShiftedCoordinate();
+            if (focusPos != null) {
+                mapView.setFocusPos(focusPos, 0.6f);
+            }
+            Location lastLocation = snapLocationSourceProxy.getLastLocation();
+            if (lastLocation != null) {
+                float direction = (float) lastLocation.getDirection();
+                mapView.setMapRotation(direction, 0.6f);
+            }
         }
         if (initialFocus) {
             mapView.setZoom(18, 0.6f);
