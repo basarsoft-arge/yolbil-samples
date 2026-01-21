@@ -30,6 +30,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.akylas.yolbiltest.R;
+import com.akylas.yolbiltest.MainActivity;
 import com.basarsoft.yolbil.components.Options;
 
 import com.basarsoft.yolbil.core.MapPos;
@@ -323,6 +324,18 @@ public class SecondFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Uygulama açıldığında lisans kontrolu
+
+        if (mapViewObject != null) {
+            mapViewObject.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).runLicenseCheckIfNeeded();
+                    }
+                }
+            });
+        }
         try {
             if(lastLocation != null) {
                 isLocationFound = false;
