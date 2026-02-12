@@ -16,6 +16,9 @@ public class BaseSettings {
     private final String accountId = "ACC_ID";
     private final String appCode = "APP_CODE";
 
+    // Katman olarak eklenecek url
+    private final String networkPbfUrl = "Katman URL";
+
     // Getter Methods
     public String getAccountId() {
         return accountId;
@@ -26,5 +29,13 @@ public class BaseSettings {
     }
     public String getBASE_URL() {
         return baseUrl;
+    }
+
+    public String getBaseVectorPbfUrl() {
+        return baseUrl + "/Service/api/v1/VectorMap/Pbf?accId=" + accountId + "&appCode=" + appCode + "&x={x}&y={y}&z={zoom}";
+    }
+
+    public String getNetworkPbfUrl() {
+        return networkPbfUrl;
     }
 }

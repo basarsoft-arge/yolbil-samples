@@ -22,6 +22,8 @@
     <string name="navigation_speed_limit_value">Sınır %1$d km/h</string>
     <string name="basemap_google">Google Altlık</string>
     <string name="basemap_basarsoft">Basarsoft Altlık</string>
+    <string name="network_layer_toggle_on">  Katmanı Aç</string>
+    <string name="network_layer_toggle_off">  Katmanı Kapat</string>
 
     <!-- Directions -->
     <string name="turn_right">Sağa dön</string>

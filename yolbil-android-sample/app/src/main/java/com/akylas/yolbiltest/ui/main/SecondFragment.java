@@ -32,14 +32,20 @@ import androidx.fragment.app.Fragment;
 import com.akylas.yolbiltest.R;
 import com.basarsoft.yolbil.components.Options;
 
+import com.basarsoft.yolbil.core.BinaryData;
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
+import com.basarsoft.yolbil.core.Variant;
 import com.akylas.yolbiltest.application.AppSession;
 import com.akylas.yolbiltest.utils.LocationUtils;
+import com.basarsoft.yolbil.datasources.HTTPTileDataSource;
 import com.basarsoft.yolbil.datasources.BlueDotDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
 import com.basarsoft.yolbil.graphics.Color;
 import com.basarsoft.yolbil.layers.VectorLayer;
+import com.basarsoft.yolbil.layers.VectorTileEventListener;
+import com.basarsoft.yolbil.layers.VectorTileLayer;
+import com.basarsoft.yolbil.layers.VectorTileRenderOrder;
 import com.basarsoft.yolbil.location.GPSLocationSource;
 import com.basarsoft.yolbil.location.Location;
 import com.basarsoft.yolbil.location.LocationBuilder;
@@ -49,13 +55,18 @@ import com.basarsoft.yolbil.navigation.AssetsVoiceNarrator;
 import com.basarsoft.yolbil.projections.EPSG4326;
 import com.basarsoft.yolbil.routing.NavigationResult;
 import com.basarsoft.yolbil.routing.RoutingInstructionVector;
+import com.basarsoft.yolbil.styles.CompiledStyleSet;
 import com.basarsoft.yolbil.styles.LineStyleBuilder;
 import com.basarsoft.yolbil.styles.MarkerStyle;
 import com.basarsoft.yolbil.styles.MarkerStyleBuilder;
 import com.basarsoft.yolbil.ui.DeviceOrientationFocusedListener;
 import com.basarsoft.yolbil.ui.MapView;
+import com.basarsoft.yolbil.ui.VectorTileClickInfo;
+import com.basarsoft.yolbil.utils.AssetUtils;
 import com.basarsoft.yolbil.utils.YolbilDownloadManager;
+import com.basarsoft.yolbil.utils.ZippedAssetPackage;
 import com.basarsoft.yolbil.vectorelements.Marker;
+import com.basarsoft.yolbil.vectortiles.MBVectorTileDecoder;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,11 +94,12 @@ public class SecondFragment extends Fragment {
     BlueDotDataSource sharedBlueDotDataSource;
     Location lastLocation = null;
     LocationUtils locationUtils;
-    Button focusPos,startNavigation, simulationButton, followButton, blueDotButton;
+    Button focusPos,startNavigation, simulationButton, followButton, blueDotButton, networkLayerButton;
     private NavigationInfoCardView navigationInfoCardView;
     private View routeLoadingOverlay;
     private TextView routeLoadingText;
-    private BaseMapSwitchController baseMapSwitchController;
+    private View networkInfoCard;
+    private TextView networkInfoText;
     boolean isLocationFound = false;
     boolean mockGpsEnabled = false;
     private boolean hasActiveRoute = false;
@@ -100,6 +112,11 @@ public class SecondFragment extends Fragment {
     private static final String PREF_KEY_VOICE_GUIDANCE = "voice_guidance";
     private static final float DEFAULT_TILT = 45.0f;
     private static final float LOW_TILT = 15.0f;
+    private static final String BASE_VECTOR_STYLE_ASSET = "transport_style_final_package_latest_light.zip";
+    private static final String BASE_VECTOR_STYLE_NAME = "transport_style";
+    private static final String BASE_VECTOR_STYLE_THEME = "light";
+    private static final String NETWORK_STYLE_ASSET = "road_sources.zip";
+    private static final String NETWORK_STYLE_NAME = "road_source_style";
 
     String accId = BaseSettings.INSTANCE.getAccountId();
     String appCode = BaseSettings.INSTANCE.getAppCode();
@@ -107,6 +124,16 @@ public class SecondFragment extends Fragment {
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
     AssetsVoiceNarrator commandPlayer;
+    private HTTPTileDataSource baseVectorTileDataSource;
+    private VectorTileLayer baseVectorLayer;
+    private MBVectorTileDecoder baseVectorTileDecoder;
+    private CompiledStyleSet baseVectorStyleSet;
+    private boolean isBaseVectorLayerAttached = false;
+    private HTTPTileDataSource networkTileDataSource;
+    private VectorTileLayer networkVectorLayer;
+    private MBVectorTileDecoder networkTileDecoder;
+    private CompiledStyleSet networkStyleSet;
+    private boolean isNetworkLayerAttached = false;
     private final YolbilNavigationUsage.SimulationListener simulationStateListener = new YolbilNavigationUsage.SimulationListener() {
         @Override
         public void onSimulationFinished() {
@@ -267,6 +294,11 @@ public class SecondFragment extends Fragment {
         Button googleBaseButton = view.findViewById(R.id.buttonGoogleBase);
         Button basarsoftBaseButton = view.findViewById(R.id.buttonBasarsoftBase);
         Button modeBtn = view.findViewById(R.id.modeButton);
+        networkLayerButton = view.findViewById(R.id.buttonNetworkLayer);
+        networkInfoCard = view.findViewById(R.id.networkInfoCard);
+        networkInfoText = view.findViewById(R.id.networkInfoText);
+        googleBaseButton.setVisibility(View.GONE);
+        basarsoftBaseButton.setVisibility(View.GONE);
 
         mapViewObject = view.findViewById(R.id.mapView);
         mapViewObject.setOnTouchListener((v, event) -> {
@@ -276,6 +308,9 @@ public class SecondFragment extends Fragment {
             }
             return false;
         });
+
+        networkLayerButton.setOnClickListener(v -> toggleNetworkLayer());
+        updateNetworkLayerButton();
         modeBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -290,9 +325,7 @@ public class SecondFragment extends Fragment {
         options.setBaseProjection(new EPSG4326());
         silverBlocks = new MapPos(32.836262, 39.960160);
 
-        baseMapSwitchController = new BaseMapSwitchController(mapViewObject, appCode, accId);
-        baseMapSwitchController.bindButtons(googleBaseButton, basarsoftBaseButton);
-        baseMapSwitchController.initializeDefaultLayer();
+        attachBaseVectorLayer();
 
         LocationBuilder locationBuilder = new LocationBuilder();
         locationBuilder.setCoordinate(silverBlocks);
@@ -409,60 +442,13 @@ public class SecondFragment extends Fragment {
             }
         });*/
 
-        sendAutoSuggestionRequest();
+
         mapViewObject.setFocusPos(new MapPos(34.12908547029324,39.45037125619312),0.0f);
         mapViewObject.setZoom(4,0.0f);
 
     }
 
-    // Yolbil servisinden örnek bir adres önerisi isteği gönderip sonucu loglar.
-    private void sendAutoSuggestionRequest() {
-        String url = "https://bms.basarsoft.com.tr/Service/api/v1/AutoSuggestion/Search"
-                + "?accId=" +accId
-                + "&appCode="+appCode
-                + "&words=atatürk"
-                + "&limit=10"
-                + "&lat=0"
-                + "&lon=0"
-                + "&type=4"
-                + "&uk=false";
 
-        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, url, null,
-                new Response.Listener<JSONArray>() {
-                    @Override
-                    public void onResponse(JSONArray response) {
-                        try {
-                            for (int i = 0; i < response.length(); i++) {
-                                JSONArray innerArray = response.getJSONArray(i);
-
-                                String fullAddress = innerArray.getString(0); // Adres
-                                String city = innerArray.getString(6); // Şehir
-
-                                Log.d(TAG, "Full Address: " + fullAddress);
-                                Log.d(TAG, "City: " + city);
-                            }
-                        } catch (JSONException e) {
-                            Log.e(TAG, "JSON Parsing Error: " + e.getMessage());
-                        }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e(TAG, "Error: " + error.toString());
-                    }
-                }) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("accept", "text/plain");
-                return headers;
-            }
-        };
-
-        RequestQueue requestQueue = Volley.newRequestQueue(getActivity());
-        requestQueue.add(jsonArrayRequest);
-    }
     // Offline veri paketini indirirken kullanıcıya süreç hakkında bilgi verir.
     private void startDownload(File destinationFile, String downloadUrl) {
         // İndirilen dosyanın kaydedileceği yer
@@ -496,6 +482,158 @@ public class SecondFragment extends Fragment {
                 });
             }
         });
+    }
+
+    private CompiledStyleSet ensureBaseVectorStyleSet() {
+        if (baseVectorStyleSet != null) {
+            return baseVectorStyleSet;
+        }
+        try {
+            final BinaryData styleAsset = AssetUtils.loadAsset(BASE_VECTOR_STYLE_ASSET);
+            if (styleAsset == null) {
+                Log.e(TAG, "Base vector style asset bulunamadı: " + BASE_VECTOR_STYLE_ASSET);
+                return null;
+            }
+            final ZippedAssetPackage assetPackage = new ZippedAssetPackage(styleAsset);
+            baseVectorStyleSet = new CompiledStyleSet(assetPackage, BASE_VECTOR_STYLE_NAME);
+            return baseVectorStyleSet;
+        } catch (Exception e) {
+            Log.e(TAG, "Base vector style yüklenemedi: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void attachBaseVectorLayer() {
+        if (isBaseVectorLayerAttached || mapViewObject == null) {
+            return;
+        }
+        final CompiledStyleSet compiledStyle = ensureBaseVectorStyleSet();
+        if (compiledStyle == null) {
+            return;
+        }
+        baseVectorTileDataSource = new HTTPTileDataSource(0, 15, BaseSettings.INSTANCE.getBaseVectorPbfUrl());
+        baseVectorTileDecoder = new MBVectorTileDecoder(compiledStyle);
+        baseVectorTileDecoder.setStyleParameter("selectedTheme", BASE_VECTOR_STYLE_THEME);
+        baseVectorLayer = new VectorTileLayer(baseVectorTileDataSource, baseVectorTileDecoder);
+        baseVectorLayer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
+        baseVectorLayer.setBuildingRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAYER);
+        mapViewObject.getLayers().insert(0, baseVectorLayer);
+        isBaseVectorLayerAttached = true;
+    }
+
+    private CompiledStyleSet ensureNetworkStyleSet() {
+        if (networkStyleSet != null) {
+            return networkStyleSet;
+        }
+        try {
+            final BinaryData styleAsset = AssetUtils.loadAsset(NETWORK_STYLE_ASSET);
+            if (styleAsset == null) {
+                Log.e(TAG, "Network style asset bulunamadı: " + NETWORK_STYLE_ASSET);
+                return null;
+            }
+            final ZippedAssetPackage assetPackage = new ZippedAssetPackage(styleAsset);
+            networkStyleSet = new CompiledStyleSet(assetPackage, NETWORK_STYLE_NAME);
+            return networkStyleSet;
+        } catch (Exception e) {
+            Log.e(TAG, "Network style yüklenemedi: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void attachNetworkLayer() {
+        if (isNetworkLayerAttached || mapViewObject == null) {
+            return;
+        }
+        final CompiledStyleSet compiledStyle = ensureNetworkStyleSet();
+        if (compiledStyle == null) {
+            return;
+        }
+        networkTileDataSource = new HTTPTileDataSource(14, 15, BaseSettings.INSTANCE.getNetworkPbfUrl());
+        networkTileDecoder = new MBVectorTileDecoder(compiledStyle);
+        networkVectorLayer = new VectorTileLayer(networkTileDataSource, networkTileDecoder);
+        networkVectorLayer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
+        networkVectorLayer.setBuildingRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAYER);
+        networkVectorLayer.setVectorTileEventListener(new VectorTileEventListener() {
+            @Override
+            public boolean onVectorTileClicked(VectorTileClickInfo clickInfo) {
+                if (clickInfo == null || clickInfo.getFeature() == null) {
+                    return false;
+                }
+                Variant properties = clickInfo.getFeature().getProperties();
+                String description = "";
+                if (properties != null && properties.containsObjectKey("ACIKLAMA")) {
+                    description = properties.getObjectElement("ACIKLAMA").getString();
+                } else if (properties != null) {
+                    description = properties.toString();
+                }
+                final String message = description == null || description.isEmpty() ? "ACIKLAMA bulunamadı" : description;
+                requireActivity().runOnUiThread(() -> showNetworkInfo(message));
+                return true;
+            }
+        });
+        mapViewObject.getLayers().add(networkVectorLayer);
+        isNetworkLayerAttached = true;
+        updateNetworkLayerButton();
+    }
+
+    private void detachBaseVectorLayer() {
+        if (!isBaseVectorLayerAttached || mapViewObject == null || baseVectorLayer == null) {
+            return;
+        }
+        try {
+            mapViewObject.getLayers().remove(baseVectorLayer);
+        } catch (Exception ignored) {
+        }
+        baseVectorLayer = null;
+        baseVectorTileDataSource = null;
+        baseVectorTileDecoder = null;
+        isBaseVectorLayerAttached = false;
+        detachNetworkLayer();
+    }
+
+    private void detachNetworkLayer() {
+        if (!isNetworkLayerAttached || mapViewObject == null || networkVectorLayer == null) {
+            return;
+        }
+        try {
+            mapViewObject.getLayers().remove(networkVectorLayer);
+        } catch (Exception ignored) {
+        }
+        networkVectorLayer = null;
+        networkTileDataSource = null;
+        networkTileDecoder = null;
+        isNetworkLayerAttached = false;
+        updateNetworkLayerButton();
+        if (networkInfoCard != null) {
+            networkInfoCard.setVisibility(View.GONE);
+        }
+    }
+
+    private void toggleNetworkLayer() {
+        if (isNetworkLayerAttached) {
+            detachNetworkLayer();
+        } else {
+            attachNetworkLayer();
+        }
+    }
+
+    private void updateNetworkLayerButton() {
+        if (networkLayerButton == null) {
+            return;
+        }
+        if (isNetworkLayerAttached) {
+            networkLayerButton.setText(R.string.network_layer_toggle_off);
+        } else {
+            networkLayerButton.setText(R.string.network_layer_toggle_on);
+        }
+    }
+
+    private void showNetworkInfo(String message) {
+        if (networkInfoCard == null || networkInfoText == null) {
+            return;
+        }
+        networkInfoText.setText(message);
+        networkInfoCard.setVisibility(View.VISIBLE);
     }
 
     /*
@@ -546,6 +684,7 @@ public class SecondFragment extends Fragment {
     public void onDestroyView() {
         Log.d(TAG, "onDestroyView");
         stopPhoneLocationUpdates();
+        detachBaseVectorLayer();
         super.onDestroyView();
     }
 
