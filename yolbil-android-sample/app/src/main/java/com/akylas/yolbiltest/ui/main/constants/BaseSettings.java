@@ -15,6 +15,7 @@ public class BaseSettings {
 
     private final String accountId = "ACC_ID";
     private final String appCode = "APP_CODE";
+    private final String rasterMapPath = "/service/api/v1/map/Default";
 
     // Katman olarak eklenecek url
     private final String networkPbfUrl = "Katman URL";
@@ -31,11 +32,15 @@ public class BaseSettings {
         return baseUrl;
     }
 
-    public String getBaseVectorPbfUrl() {
-        return baseUrl + "/Service/api/v1/VectorMap/Pbf?accId=" + accountId + "&appCode=" + appCode + "&x={x}&y={y}&z={zoom}";
-    }
 
     public String getNetworkPbfUrl() {
         return networkPbfUrl;
+    }
+
+    public String getBaseRasterTileUrl(String appCode, String accId) {
+        return baseUrl + rasterMapPath
+                + "?appcode=" + appCode
+                + "&accid=" + accId
+                + "&x={x}&y={y}&z={zoom}";
     }
 }

@@ -19,12 +19,6 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.akylas.yolbiltest.ui.main.constants.BaseSettings;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonArrayRequest;
-import com.android.volley.toolbox.Volley;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -94,10 +88,11 @@ public class SecondFragment extends Fragment {
     BlueDotDataSource sharedBlueDotDataSource;
     Location lastLocation = null;
     LocationUtils locationUtils;
-    Button focusPos,startNavigation, simulationButton, followButton, blueDotButton, networkLayerButton;
+    Button startNavigation, simulationButton, followButton, networkLayerButton;
     private NavigationInfoCardView navigationInfoCardView;
     private View routeLoadingOverlay;
     private TextView routeLoadingText;
+    private BaseMapSwitchController baseMapSwitchController;
     private View networkInfoCard;
     private TextView networkInfoText;
     boolean isLocationFound = false;
@@ -112,9 +107,6 @@ public class SecondFragment extends Fragment {
     private static final String PREF_KEY_VOICE_GUIDANCE = "voice_guidance";
     private static final float DEFAULT_TILT = 45.0f;
     private static final float LOW_TILT = 15.0f;
-    private static final String BASE_VECTOR_STYLE_ASSET = "transport_style_final_package_latest_light.zip";
-    private static final String BASE_VECTOR_STYLE_NAME = "transport_style";
-    private static final String BASE_VECTOR_STYLE_THEME = "light";
     private static final String NETWORK_STYLE_ASSET = "road_sources.zip";
     private static final String NETWORK_STYLE_NAME = "road_source_style";
 
@@ -124,11 +116,6 @@ public class SecondFragment extends Fragment {
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
     AssetsVoiceNarrator commandPlayer;
-    private HTTPTileDataSource baseVectorTileDataSource;
-    private VectorTileLayer baseVectorLayer;
-    private MBVectorTileDecoder baseVectorTileDecoder;
-    private CompiledStyleSet baseVectorStyleSet;
-    private boolean isBaseVectorLayerAttached = false;
     private HTTPTileDataSource networkTileDataSource;
     private VectorTileLayer networkVectorLayer;
     private MBVectorTileDecoder networkTileDecoder;
@@ -190,41 +177,12 @@ public class SecondFragment extends Fragment {
         } else {
             Log.w(TAG, "mockGpsSwitch view not found. Mock GPS toggle disabled.");
         }
-        focusPos = view.findViewById(R.id.button2);
-        blueDotButton = view.findViewById(R.id.blueDotButton);
         navigationInfoCardView = new NavigationInfoCardView(view);
         startNavigation = view.findViewById(R.id.button3);
         simulationButton = view.findViewById(R.id.buttonSimulation);
         routeLoadingOverlay = view.findViewById(R.id.routeLoadingOverlay);
         routeLoadingText = view.findViewById(R.id.routeLoadingText);
         followButton = view.findViewById(R.id.followButton);
-        focusPos.setOnClickListener(new View.OnClickListener() {
-            @Override
-            //focus oriantation tıklandığı zaman gerçek konuma gidiyor simülasyon esnasında gerçek konuma dönüyor.
-            public void onClick(View view) {
-                try {
-                    if (mapViewObject != null) {
-                        mapViewObject.setDeviceOrientationFocused(true);
-                    }
-                    MapPos coordinate = AppSession.getLastKnowLocation();
-                    if (coordinate == null && lastLocation != null) {
-                        coordinate = lastLocation.getCoordinate();
-                    }
-                    if (coordinate != null && mapViewObject != null) {
-                        mapViewObject.setFocusPos(coordinate, 0.5f);
-                        mapViewObject.setZoom(18, 0.3f);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        blueDotButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                handleBlueDotFocusRequest();
-            }
-        });
         followButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -291,14 +249,9 @@ public class SecondFragment extends Fragment {
                 }
             }
         });
-        Button googleBaseButton = view.findViewById(R.id.buttonGoogleBase);
-        Button basarsoftBaseButton = view.findViewById(R.id.buttonBasarsoftBase);
-        Button modeBtn = view.findViewById(R.id.modeButton);
         networkLayerButton = view.findViewById(R.id.buttonNetworkLayer);
         networkInfoCard = view.findViewById(R.id.networkInfoCard);
         networkInfoText = view.findViewById(R.id.networkInfoText);
-        googleBaseButton.setVisibility(View.GONE);
-        basarsoftBaseButton.setVisibility(View.GONE);
 
         mapViewObject = view.findViewById(R.id.mapView);
         mapViewObject.setOnTouchListener((v, event) -> {
@@ -308,24 +261,16 @@ public class SecondFragment extends Fragment {
             }
             return false;
         });
-
         networkLayerButton.setOnClickListener(v -> toggleNetworkLayer());
         updateNetworkLayerButton();
-        modeBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (!mapViewObject.isDeviceOrientationFocused()) {
-                    mapViewObject.setDeviceOrientationFocused(true);
-                }
-            }
-        });
 
         Options options = mapViewObject.getOptions();
 
         options.setBaseProjection(new EPSG4326());
         silverBlocks = new MapPos(32.836262, 39.960160);
 
-        attachBaseVectorLayer();
+        baseMapSwitchController = new BaseMapSwitchController(mapViewObject, appCode, accId);
+        baseMapSwitchController.initializeDefaultLayer();
 
         LocationBuilder locationBuilder = new LocationBuilder();
         locationBuilder.setCoordinate(silverBlocks);
@@ -484,43 +429,6 @@ public class SecondFragment extends Fragment {
         });
     }
 
-    private CompiledStyleSet ensureBaseVectorStyleSet() {
-        if (baseVectorStyleSet != null) {
-            return baseVectorStyleSet;
-        }
-        try {
-            final BinaryData styleAsset = AssetUtils.loadAsset(BASE_VECTOR_STYLE_ASSET);
-            if (styleAsset == null) {
-                Log.e(TAG, "Base vector style asset bulunamadı: " + BASE_VECTOR_STYLE_ASSET);
-                return null;
-            }
-            final ZippedAssetPackage assetPackage = new ZippedAssetPackage(styleAsset);
-            baseVectorStyleSet = new CompiledStyleSet(assetPackage, BASE_VECTOR_STYLE_NAME);
-            return baseVectorStyleSet;
-        } catch (Exception e) {
-            Log.e(TAG, "Base vector style yüklenemedi: " + e.getMessage());
-            return null;
-        }
-    }
-
-    private void attachBaseVectorLayer() {
-        if (isBaseVectorLayerAttached || mapViewObject == null) {
-            return;
-        }
-        final CompiledStyleSet compiledStyle = ensureBaseVectorStyleSet();
-        if (compiledStyle == null) {
-            return;
-        }
-        baseVectorTileDataSource = new HTTPTileDataSource(0, 15, BaseSettings.INSTANCE.getBaseVectorPbfUrl());
-        baseVectorTileDecoder = new MBVectorTileDecoder(compiledStyle);
-        baseVectorTileDecoder.setStyleParameter("selectedTheme", BASE_VECTOR_STYLE_THEME);
-        baseVectorLayer = new VectorTileLayer(baseVectorTileDataSource, baseVectorTileDecoder);
-        baseVectorLayer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
-        baseVectorLayer.setBuildingRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAYER);
-        mapViewObject.getLayers().insert(0, baseVectorLayer);
-        isBaseVectorLayerAttached = true;
-    }
-
     private CompiledStyleSet ensureNetworkStyleSet() {
         if (networkStyleSet != null) {
             return networkStyleSet;
@@ -535,7 +443,7 @@ public class SecondFragment extends Fragment {
             networkStyleSet = new CompiledStyleSet(assetPackage, NETWORK_STYLE_NAME);
             return networkStyleSet;
         } catch (Exception e) {
-            Log.e(TAG, "Network style yüklenemedi: " + e.getMessage());
+            Log.e(TAG, "Network style yuklenemedi: " + e.getMessage());
             return null;
         }
     }
@@ -574,21 +482,6 @@ public class SecondFragment extends Fragment {
         mapViewObject.getLayers().add(networkVectorLayer);
         isNetworkLayerAttached = true;
         updateNetworkLayerButton();
-    }
-
-    private void detachBaseVectorLayer() {
-        if (!isBaseVectorLayerAttached || mapViewObject == null || baseVectorLayer == null) {
-            return;
-        }
-        try {
-            mapViewObject.getLayers().remove(baseVectorLayer);
-        } catch (Exception ignored) {
-        }
-        baseVectorLayer = null;
-        baseVectorTileDataSource = null;
-        baseVectorTileDecoder = null;
-        isBaseVectorLayerAttached = false;
-        detachNetworkLayer();
     }
 
     private void detachNetworkLayer() {
@@ -636,44 +529,6 @@ public class SecondFragment extends Fragment {
         networkInfoCard.setVisibility(View.VISIBLE);
     }
 
-    /*
-        private void addSpatialiteLayer(MapView mapView, String tableName, int minZoom, int maxZoom, MBVectorTileDecoder vectorTileDecoder, SpatialiteDatabase database, String... properties) {
-            final SpatialiteVectorTileDataSource dataSource = new SpatialiteVectorTileDataSource(database);
-            StringVector propertiesVector = new StringVector();
-            for(String property: properties) {
-                propertiesVector.add(property);
-            }
-            dataSource.createSpatialiteLayer(tableName, tableName, minZoom, maxZoom, propertiesVector);
-            try {
-                dataSource.disableLayer("test");
-            }catch (RuntimeException ex) {
-                ex.printStackTrace();
-            }
-            final VectorTileLayer layer = new VectorTileLayer(dataSource, vectorTileDecoder);
-            layer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
-            mapView.getLayers().add(layer);
-        }
-
-        private Pair<VectorTileLayer, SpatialiteVectorTileDataSource> spatialiteLayer(String layerName, String tableName, int minZoom, int maxZoom, MBVectorTileDecoder decoder, SpatialiteDatabase spatialiteDatabase) {
-            final SpatialiteVectorTileDataSource dataSource = new SpatialiteVectorTileDataSource(spatialiteDatabase);
-            dataSource.createSpatialiteLayer(layerName, tableName, minZoom, maxZoom);
-            final VectorTileLayer layer = new VectorTileLayer(dataSource, decoder);
-            layer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
-            return new Pair<>(layer, dataSource);
-        }
-
-        private Pair<VectorTileLayer, SpatialiteVectorTileDataSource> spatialiteLayer(String layerName, String tableName, int minZoom, int maxZoom, MBVectorTileDecoder decoder, SpatialiteDatabase spatialiteDatabase, String... properties) {
-            final SpatialiteVectorTileDataSource dataSource = new SpatialiteVectorTileDataSource(spatialiteDatabase);
-            StringVector propertiesVector = new StringVector();
-            for(String property: properties) {
-                propertiesVector.add(property);
-            }
-            dataSource.createSpatialiteLayer(layerName, tableName, minZoom, maxZoom, propertiesVector);
-            final VectorTileLayer layer = new VectorTileLayer(dataSource, decoder);
-            layer.setLabelRenderOrder(VectorTileRenderOrder.VECTOR_TILE_RENDER_ORDER_LAST);
-            return new Pair<>(layer, dataSource);
-        }
-        */
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         Log.d(TAG, "onActivityCreated");
@@ -684,7 +539,7 @@ public class SecondFragment extends Fragment {
     public void onDestroyView() {
         Log.d(TAG, "onDestroyView");
         stopPhoneLocationUpdates();
-        detachBaseVectorLayer();
+        detachNetworkLayer();
         super.onDestroyView();
     }
 
