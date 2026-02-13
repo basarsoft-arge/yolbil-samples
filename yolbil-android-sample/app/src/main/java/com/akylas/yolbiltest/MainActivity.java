@@ -1,8 +1,10 @@
     package com.akylas.yolbiltest;
 
+    import android.Manifest;
     import android.app.ProgressDialog;
     import android.content.DialogInterface;
     import android.content.Intent;
+    import android.content.pm.PackageManager;
     import android.net.Uri;
     import android.os.AsyncTask;
     import android.os.Build;
@@ -14,9 +16,13 @@
     import android.util.Log;
     import android.widget.Toast;
 
+    import androidx.annotation.NonNull;
+    import androidx.core.app.ActivityCompat;
+    import androidx.core.content.ContextCompat;
     import androidx.appcompat.app.AlertDialog;
     import androidx.appcompat.app.AppCompatActivity;
 
+    import com.akylas.yolbiltest.background.LocationServiceStarter;
     import com.akylas.yolbiltest.ui.main.SecondFragment;
     import com.basarsoft.yolbil.core.License;
     import com.basarsoft.yolbil.core.LicenseResult;
@@ -25,6 +31,11 @@
 
     public class MainActivity extends AppCompatActivity {
         private final String TAG = "MainActivity";
+        private static final int REQUEST_FOREGROUND_LOCATION_PERMISSION = 2201;
+        private static final int REQUEST_BACKGROUND_LOCATION_PERMISSION = 2202;
+        private static final int REQUEST_POST_NOTIFICATIONS_PERMISSION = 2203;
+        private boolean backgroundPermissionRequestedOnce = false;
+        private boolean notificationPermissionRequestedOnce = false;
         private volatile boolean licenseCheckTriggered = false;
         private int licenseRetryCount = 0;
         private final Handler licenseRetryHandler = new Handler(Looper.getMainLooper());
@@ -53,6 +64,8 @@
                     startActivity(intent);*/
                 }
             }
+            LocationServiceStarter.scheduleWatchdog(this);
+            ensureBackgroundLocationTracking();
         }
 
         @Override
@@ -77,6 +90,73 @@
         protected void onDestroy() {
             Log.d(TAG, "onDestroy");
             super.onDestroy();
+        }
+
+        private void ensureBackgroundLocationTracking() {
+            if (!hasForegroundLocationPermission()) {
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
+                        REQUEST_FOREGROUND_LOCATION_PERMISSION
+                );
+                return;
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                    && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                if (!backgroundPermissionRequestedOnce) {
+                    backgroundPermissionRequestedOnce = true;
+                    ActivityCompat.requestPermissions(
+                            this,
+                            new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                            REQUEST_BACKGROUND_LOCATION_PERMISSION
+                    );
+                    return;
+                }
+            } else if (Build.VERSION.SDK_INT >= 33
+                    && ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                if (!notificationPermissionRequestedOnce) {
+                    notificationPermissionRequestedOnce = true;
+                    ActivityCompat.requestPermissions(
+                            this,
+                            new String[]{"android.permission.POST_NOTIFICATIONS"},
+                            REQUEST_POST_NOTIFICATIONS_PERMISSION
+                    );
+                    return;
+                }
+            }
+
+            LocationServiceStarter.startServiceIfPossible(this);
+        }
+
+        private boolean hasForegroundLocationPermission() {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @Override
+        public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            if (requestCode == REQUEST_FOREGROUND_LOCATION_PERMISSION) {
+                if (hasForegroundLocationPermission()) {
+                    ensureBackgroundLocationTracking();
+                }
+                return;
+            }
+
+            if (requestCode == REQUEST_BACKGROUND_LOCATION_PERMISSION) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                        || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    ensureBackgroundLocationTracking();
+                } else {
+                    LocationServiceStarter.startServiceIfPossible(this);
+                }
+                return;
+            }
+
+            if (requestCode == REQUEST_POST_NOTIFICATIONS_PERMISSION) {
+                ensureBackgroundLocationTracking();
+            }
         }
 
         // Lisans kontrol akisi burada baslar.
