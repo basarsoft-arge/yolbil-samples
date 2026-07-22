@@ -37,10 +37,12 @@ public class LocationForegroundService extends Service {
 
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
+    private ServiceGPSLocationSource gpsLocationSource;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        gpsLocationSource = ServiceGPSLocationSource.getInstance(getApplicationContext());
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
         locationCallback = new LocationCallback() {
             @Override
@@ -52,6 +54,7 @@ public class LocationForegroundService extends Service {
                 if (location == null) {
                     return;
                 }
+                gpsLocationSource.updateFromService(location);
                 updateNotification(location.getLatitude(), location.getLongitude());
             }
         };

@@ -36,6 +36,7 @@ import com.basarsoft.yolbil.components.Options;
 import com.basarsoft.yolbil.core.MapPos;
 import com.basarsoft.yolbil.core.MapPosVector;
 import com.akylas.yolbiltest.application.AppSession;
+import com.akylas.yolbiltest.background.ServiceGPSLocationSource;
 import com.akylas.yolbiltest.utils.LocationUtils;
 import com.basarsoft.yolbil.datasources.BlueDotDataSource;
 import com.basarsoft.yolbil.datasources.LocalVectorDataSource;
@@ -683,7 +684,7 @@ public class SecondFragment extends Fragment {
     @SuppressLint("MissingPermission")
     private void startLocationUpdates() {
         if (gpsLocationSource == null) {
-            gpsLocationSource = new GPSLocationSource(getActivity());
+            gpsLocationSource = ServiceGPSLocationSource.getInstance(requireContext());
         }
         ensureLocationUtils();
         if (mockGpsEnabled) {
