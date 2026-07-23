@@ -696,7 +696,7 @@ public class SecondFragment extends Fragment {
             locationUtils.startLocationUpdates();
         }
         ensureBlueDotDataSource();
-        gpsLocationSource.startLocationUpdates();
+      //  gpsLocationSource.startLocationUpdates();
         gpsLocationSource.addListener(new LocationListener() {
             @Override
             public void onLocationChange(Location location) {
@@ -717,13 +717,14 @@ public class SecondFragment extends Fragment {
         if (locationUtils != null) {
             locationUtils.startLocationUpdates();
         }
-        if (gpsLocationSource != null) {
+     /*   if (gpsLocationSource != null) {
             try {
-                gpsLocationSource.startLocationUpdates();
+               gpsLocationSource.startLocationUpdates();
             } catch (SecurityException se) {
                 Log.w(TAG, "resumeRealLocationUpdatesIfNeeded: konum izni yok", se);
             }
         }
+      */
     }
 
     private void ensureLocationUtils() {

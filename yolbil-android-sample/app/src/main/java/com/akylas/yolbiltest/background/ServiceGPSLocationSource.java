@@ -15,8 +15,6 @@ import com.basarsoft.yolbil.location.LocationBuilder;
 public final class ServiceGPSLocationSource extends GPSLocationSource {
     private static volatile ServiceGPSLocationSource instance;
 
-    private volatile boolean updatesEnabled;
-
     private ServiceGPSLocationSource(Context context) {
         super(context.getApplicationContext());
     }
@@ -34,16 +32,14 @@ public final class ServiceGPSLocationSource extends GPSLocationSource {
 
     @Override
     public void startLocationUpdates() {
-        updatesEnabled = true;
     }
 
     @Override
     public void stopLocationUpdates() {
-        updatesEnabled = false;
     }
 
     public void updateFromService(android.location.Location androidLocation) {
-        if (!updatesEnabled || androidLocation == null) {
+        if (androidLocation == null) {
             return;
         }
 
